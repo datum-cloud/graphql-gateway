@@ -1,0 +1,25 @@
+{
+  "name": "graphql",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "supergraph:compose": "npx mesh-compose -o supergraph.graphql",
+    "dev": "npx hive-gateway supergraph",
+    "start:gateway": "docker build --build-arg DATUM_TOKEN=$DATUM_TOKEN --build-arg DATUM_BASE_URL=$DATUM_BASE_URL -t graphql-gateway . && docker run --rm -p 4000:4000 graphql-gateway && docker rmi graphql-gateway"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@graphql-hive/gateway": "^2.1.19",
+    "@graphql-mesh/compose-cli": "^1.5.3",
+    "@omnigraph/openapi": "^0.109.23",
+    "yaml": "^2.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1"
+  }
+}
