@@ -16,3 +16,16 @@ jobs:
     with:
       image-name: graphql-gateway
     secrets: inherit
+
+  publish-kustomize-bundles:
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+    uses: datum-cloud/actions/.github/workflows/publish-kustomize-bundle.yaml@v1.7.2
+    with:
+      bundle-name: ghcr.io/datum-cloud/milo-kustomize
+      bundle-path: config
+      image-overlays: config/apiserver,config/controller-manager/base
+      image-name: ghcr.io/datum-cloud/milo
+    secrets: inherit
