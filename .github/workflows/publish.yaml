@@ -1,0 +1,18 @@
+name: Build and Publish Docker Image
+
+on:
+  push:
+  release:
+    types: ["published"]
+
+jobs:
+  publish-container-image:
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+      attestations: write
+    uses: datum-cloud/actions/.github/workflows/publish-docker.yaml@v1.7.2
+    with:
+      image-name: graphql-gateway
+    secrets: inherit
