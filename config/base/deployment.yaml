@@ -37,6 +37,8 @@ spec:
               name: http
               protocol: TCP
           env:
+            - name: LOGGING
+              value: debug
             - name: DATUM_BASE_URL
               value: https://milo-apiserver.datum-system.svc.cluster.local:6443
           envFrom:

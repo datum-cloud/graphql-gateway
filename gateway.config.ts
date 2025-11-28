@@ -1,6 +1,7 @@
 import { defineConfig } from '@graphql-hive/gateway'
  
 export const gatewayConfig = defineConfig({
+  logging: (process.env.LOGGING || 'info') as 'debug' | 'info' | 'warn' | 'error',
   cache: {
     type: 'localforage',
     driver: ['LOCALSTORAGE'],

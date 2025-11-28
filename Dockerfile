@@ -1,6 +1,7 @@
 # --- Runtime image: Hive Gateway ---
 FROM ghcr.io/graphql-hive/gateway:2.1.19
-RUN npm i @graphql-mesh/transport-rest
+RUN npm i @graphql-mesh/transport-rest@0.9.17
+RUN npm i @graphql-hive/router-runtime@1.0.1
 
 # Set the environment to production
 ENV NODE_ENV=production
