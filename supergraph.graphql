@@ -88,18 +88,9 @@ schema
   
   
 enum join__Graph {
-  IAM_V1_ALPHA1 @join__graph(
-    name: "IAM_V1ALPHA1"
-    url: "https://milo-apiserver.datum-system.svc.cluster.local:6443"
-  )
-  NOTIFICATION_V1_ALPHA1 @join__graph(
-    name: "NOTIFICATION_V1ALPHA1"
-    url: "https://milo-apiserver.datum-system.svc.cluster.local:6443"
-  )
-  RESOURCEMANAGER_V1_ALPHA1 @join__graph(
-    name: "RESOURCEMANAGER_V1ALPHA1"
-    url: "https://milo-apiserver.datum-system.svc.cluster.local:6443"
-  )
+  IAM_V1_ALPHA1 @join__graph(name: "IAM_V1ALPHA1", url: "https://api.staging.env.datum.net") 
+  NOTIFICATION_V1_ALPHA1 @join__graph(name: "NOTIFICATION_V1ALPHA1", url: "https://api.staging.env.datum.net") 
+  RESOURCEMANAGER_V1_ALPHA1 @join__graph(name: "RESOURCEMANAGER_V1ALPHA1", url: "https://api.staging.env.datum.net") 
 }
 
 directive @length(subgraph: String, min: Int, max: Int)  repeatable on SCALAR
@@ -487,11 +478,11 @@ scalar query_listResourcemanagerMiloapisComV1alpha1Project_items_items_status_co
 ) @typescript(subgraph: "RESOURCEMANAGER_V1ALPHA1", type: "string")  @join__type(graph: RESOURCEMANAGER_V1_ALPHA1) 
 
 type Query @extraSchemaDefinitionDirective(
-  directives: {transport: [{subgraph: "IAM_V1ALPHA1", kind: "rest", location: "https://milo-apiserver.datum-system.svc.cluster.local:6443", headers: [["Authorization", "{context.headers.authorization}"]]}]}
+  directives: {transport: [{subgraph: "IAM_V1ALPHA1", kind: "rest", location: "https://api.staging.env.datum.net", headers: [["Authorization", "{context.headers.authorization}"]]}]}
 ) @extraSchemaDefinitionDirective(
-  directives: {transport: [{subgraph: "NOTIFICATION_V1ALPHA1", kind: "rest", location: "https://milo-apiserver.datum-system.svc.cluster.local:6443", headers: [["Authorization", "{context.headers.authorization}"]]}]}
+  directives: {transport: [{subgraph: "NOTIFICATION_V1ALPHA1", kind: "rest", location: "https://api.staging.env.datum.net", headers: [["Authorization", "{context.headers.authorization}"]]}]}
 ) @extraSchemaDefinitionDirective(
-  directives: {transport: [{subgraph: "RESOURCEMANAGER_V1ALPHA1", kind: "rest", location: "https://milo-apiserver.datum-system.svc.cluster.local:6443", headers: [["Authorization", "{context.headers.authorization}"]]}]}
+  directives: {transport: [{subgraph: "RESOURCEMANAGER_V1ALPHA1", kind: "rest", location: "https://api.staging.env.datum.net", headers: [["Authorization", "{context.headers.authorization}"]]}]}
 ) @join__type(graph: IAM_V1_ALPHA1)  @join__type(graph: NOTIFICATION_V1_ALPHA1)  @join__type(graph: RESOURCEMANAGER_V1_ALPHA1)  {
   """
   list objects of kind GroupMembership
