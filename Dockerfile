@@ -1,17 +1,43 @@
-# --- Runtime image: Hive Gateway ---
-FROM ghcr.io/graphql-hive/gateway:2.1.19
-RUN npm i @graphql-mesh/transport-rest@0.9.17
-RUN npm i @graphql-hive/router-runtime@1.0.1
+# --- Stage 1: Build ---
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install all dependencies (including devDependencies for build)
+RUN npm ci
+
+# Copy source code and config
+COPY tsconfig.json ./
+COPY src/ ./src/
+
+# Build the application
+RUN npm run build
+
+# --- Stage 2: Runtime ---
+FROM node:22-slim
+
+WORKDIR /app
 
 # Set the environment to production
 ENV NODE_ENV=production
 
-WORKDIR /gateway
+# Copy package files
+COPY package.json package-lock.json ./
 
-# Copy generated supergraph and gateway configuration
-COPY supergraph.graphql ./supergraph.graphql
-COPY gateway.config.ts ./gateway.config.ts
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# Copy compiled gateway and shared code from builder
+COPY --from=builder /app/dist/gateway ./dist/gateway
+COPY --from=builder /app/dist/shared ./dist/shared
+
+# Copy runtime configuration and supergraph
+COPY config/ ./config/
+COPY src/mesh/gen/ ./src/mesh/gen/
 
 EXPOSE 4000
 
-CMD ["supergraph", "--hive-router-runtime"]
+CMD ["node", "dist/gateway/index.js"]
