@@ -1,8 +1,9 @@
+# APIs served by the GraphQL gateway
 - group: iam.miloapis.com
   version: v1alpha1
 
 - group: notification.miloapis.com
   version: v1alpha1
 
-- group: resourcemanager.miloapis.com
+- group: dns.networking.miloapis.com
   version: v1alpha1

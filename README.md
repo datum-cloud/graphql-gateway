@@ -33,15 +33,15 @@ This project provides a **GraphQL gateway** that sits in front of Milo APIServer
 
 Defined in `package.json`:
 
-- **`npm run supergraph:compose`**  
+- **`npm run supergraph:compose`**
   - Uses Hive Mesh (`mesh-compose`) and `mesh.config.ts` to generate `supergraph.graphql` locally.
   - Reads API groups/versions from `config/apis.yaml` and environment such as `DATUM_TOKEN` and `DATUM_BASE_URL`.
 
-- **`npm run dev`**  
+- **`npm run dev`**
   - Runs Hive Gateway directly against `supergraph.graphql` in the local working directory.
   - Useful for quick local development when you already composed the supergraph.
 
-- **`npm run start:gateway`**  
+- **`npm run start:gateway`**
   - Builds a Docker image (`graphql-gateway`) using the provided `Dockerfile`:
     - Passes `DATUM_TOKEN` and `DATUM_BASE_URL` as build arguments for Mesh composition.
     - Runs `mesh-compose` in the build stage to bake `supergraph.graphql` into the image.
@@ -50,13 +50,13 @@ Defined in `package.json`:
 
 ### Querying Milo through the gateway
 
-- **Using Postman with `supergraph.graphql`**:  
-  - After running `npm run supergraph:compose`, you will have a local `supergraph.graphql` file.  
-  - In Postman, create a new GraphQL request and **import** or **paste** the contents of `supergraph.graphql` as the schema.  
+- **Using Postman with `supergraph.graphql`**:
+  - After running `npm run supergraph:compose`, you will have a local `supergraph.graphql` file.
+  - In Postman, create a new GraphQL request and **import** or **paste** the contents of `supergraph.graphql` as the schema.
   - Point the request URL to your running gateway (for example `http://127.0.0.1:4000/graphql`) and you can start querying Milo through the GraphQL gateway.
 
-- **Using the built‑in GraphQL UI**:  
-  - When you run the gateway locally (via `npm run dev` or `npm run start:gateway`), it exposes a GraphQL endpoint at `http://127.0.0.1:4000/graphql`.  
+- **Using the built‑in GraphQL UI**:
+  - When you run the gateway locally (via `npm run dev` or `npm run start:gateway`), it exposes a GraphQL endpoint at `http://127.0.0.1:4000/graphql`.
   - Open `http://127.0.0.1:4000/graphql` in your browser to use the UI for exploring the schema and running queries against Milo.
 
 ### Basic usage
