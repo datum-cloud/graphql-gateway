@@ -90,15 +90,15 @@ schema
 enum join__Graph {
   DNS_V1_ALPHA1 @join__graph(
     name: "DNS_V1ALPHA1"
-    url: "https://api.staging.env.datum.net{context.headers.x-resource-endpoint-prefix}"
+    url: "https://milo-apiserver.datum-system.svc.cluster.local:6443{context.headers.x-resource-endpoint-prefix}"
   )
   IAM_V1_ALPHA1 @join__graph(
     name: "IAM_V1ALPHA1"
-    url: "https://api.staging.env.datum.net{context.headers.x-resource-endpoint-prefix}"
+    url: "https://milo-apiserver.datum-system.svc.cluster.local:6443{context.headers.x-resource-endpoint-prefix}"
   )
   NOTIFICATION_V1_ALPHA1 @join__graph(
     name: "NOTIFICATION_V1ALPHA1"
-    url: "https://api.staging.env.datum.net{context.headers.x-resource-endpoint-prefix}"
+    url: "https://milo-apiserver.datum-system.svc.cluster.local:6443{context.headers.x-resource-endpoint-prefix}"
   )
 }
 
@@ -544,11 +544,11 @@ scalar query_listNotificationMiloapisComV1alpha1EmailTemplate_items_items_status
 ) @typescript(subgraph: "NOTIFICATION_V1ALPHA1", type: "string")  @join__type(graph: NOTIFICATION_V1_ALPHA1) 
 
 type Query @extraSchemaDefinitionDirective(
-  directives: {transport: [{subgraph: "DNS_V1ALPHA1", kind: "rest", location: "https://api.staging.env.datum.net{context.headers.x-resource-endpoint-prefix}", headers: [["Authorization", "{context.headers.authorization}"]]}]}
+  directives: {transport: [{subgraph: "DNS_V1ALPHA1", kind: "rest", location: "https://milo-apiserver.datum-system.svc.cluster.local:6443{context.headers.x-resource-endpoint-prefix}", headers: [["Authorization", "{context.headers.authorization}"]]}]}
 ) @extraSchemaDefinitionDirective(
-  directives: {transport: [{subgraph: "IAM_V1ALPHA1", kind: "rest", location: "https://api.staging.env.datum.net{context.headers.x-resource-endpoint-prefix}", headers: [["Authorization", "{context.headers.authorization}"]]}]}
+  directives: {transport: [{subgraph: "IAM_V1ALPHA1", kind: "rest", location: "https://milo-apiserver.datum-system.svc.cluster.local:6443{context.headers.x-resource-endpoint-prefix}", headers: [["Authorization", "{context.headers.authorization}"]]}]}
 ) @extraSchemaDefinitionDirective(
-  directives: {transport: [{subgraph: "NOTIFICATION_V1ALPHA1", kind: "rest", location: "https://api.staging.env.datum.net{context.headers.x-resource-endpoint-prefix}", headers: [["Authorization", "{context.headers.authorization}"]]}]}
+  directives: {transport: [{subgraph: "NOTIFICATION_V1ALPHA1", kind: "rest", location: "https://milo-apiserver.datum-system.svc.cluster.local:6443{context.headers.x-resource-endpoint-prefix}", headers: [["Authorization", "{context.headers.authorization}"]]}]}
 ) @join__type(graph: DNS_V1_ALPHA1)  @join__type(graph: IAM_V1_ALPHA1)  @join__type(graph: NOTIFICATION_V1_ALPHA1)  {
   """
   list objects of kind DNSRecordSet
