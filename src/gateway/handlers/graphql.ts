@@ -1,5 +1,6 @@
 import type { IncomingMessage } from 'node:http'
 import { createGatewayRuntime } from '@graphql-hive/gateway'
+import { unifiedGraphHandler } from '@graphql-hive/router-runtime'
 import { sendJson, parseUrl } from '@/gateway/utils'
 import {
   supergraph,
@@ -15,6 +16,7 @@ import type { ScopedMatch, GatewayHandler } from '@/gateway/types'
 const gateway = createGatewayRuntime({
   supergraph,
   logging: env.logLevel,
+  unifiedGraphHandler,
 })
 
 const parseScopedMatch = (match: RegExpExecArray): ScopedMatch => {
