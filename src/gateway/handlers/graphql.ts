@@ -1,35 +1,28 @@
 import type { IncomingMessage } from 'node:http'
-import { createGatewayRuntime } from '@graphql-hive/gateway'
-import { unifiedGraphHandler } from '@graphql-hive/router-runtime'
 import { sendJson, parseUrl } from '@/gateway/utils'
-import {
-  supergraph,
-  env,
-  validParentResources,
-  scopedEndpoints,
-  SCOPED_RESOURCE_PATTERN,
-} from '@/gateway/config'
+import { validParentResources, scopedEndpoints, SCOPED_RESOURCE_PATTERN } from '@/gateway/config'
+import { gateway } from '@/gateway/runtime'
 import { log } from '@/shared/utils'
 import type { ScopedMatch, GatewayHandler } from '@/gateway/types'
 
-// Create the gateway runtime
-const gateway = createGatewayRuntime({
-  supergraph,
-  logging: env.logLevel,
-  unifiedGraphHandler,
-})
-
+/**
+ * Parse a scoped URL match into a structured object.
+ */
 const parseScopedMatch = (match: RegExpExecArray): ScopedMatch => {
   const [, apiGroup, version, kindPlural, resourceName] = match
   return {
     apiGroup,
     version,
     kindPlural,
-    kind: kindPlural.replace(/s$/, ''), // Convert plural to singular
+    kind: kindPlural.replace(/s$/, ''),
     resourceName,
   }
 }
 
+/**
+ * Set headers for scoped resource requests.
+ * These headers are used by the upstream API to route to the correct resource.
+ */
 const setScopedHeaders = (req: IncomingMessage, scoped: ScopedMatch): void => {
   req.headers['x-resource-api-group'] = scoped.apiGroup
   req.headers['x-resource-version'] = scoped.version
@@ -39,18 +32,25 @@ const setScopedHeaders = (req: IncomingMessage, scoped: ScopedMatch): void => {
     `/apis/${scoped.apiGroup}/${scoped.version}/${scoped.kindPlural}/${scoped.resourceName}/control-plane`
 }
 
+/** Check if the path is the root GraphQL endpoint */
 export const isRootGraphQL = (pathname: string): boolean => {
   return pathname === '/graphql'
 }
 
+/** Check if the path is a scoped GraphQL endpoint */
 export const isScopedGraphQL = (pathname: string): boolean => {
   return SCOPED_RESOURCE_PATTERN?.test(pathname) === true
 }
 
+/** Check if the path is any GraphQL endpoint (root or scoped) */
 export const isGraphQLEndpoint = (pathname: string): boolean => {
   return isRootGraphQL(pathname) || isScopedGraphQL(pathname)
 }
 
+/**
+ * Handle GraphQL requests (both root and scoped).
+ * Parses the URL, validates scoped resources, and forwards to the gateway.
+ */
 export const handleGraphQL: GatewayHandler = async (req, res) => {
   const url = parseUrl(req.url!, req.headers.host!)
   const scopedMatch = SCOPED_RESOURCE_PATTERN?.exec(url.pathname)
@@ -71,7 +71,6 @@ export const handleGraphQL: GatewayHandler = async (req, res) => {
     log.info(`Scoped request: ${scoped.kind}/${scoped.resourceName}`)
     setScopedHeaders(req, scoped)
   } else {
-    // Unscoped access - ensure header is empty so endpoint resolves to baseUrl
     log.debug('Root GraphQL request')
     req.headers['x-resource-endpoint-prefix'] = ''
   }

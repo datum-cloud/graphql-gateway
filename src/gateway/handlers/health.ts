@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { sendJson } from '@/gateway/utils'
-import { supergraph } from '@/gateway/config'
+import { isInitialized } from '@/gateway/auth'
 
 const HEALTH_PATHS = new Set(['/health', '/healthz', '/healthcheck'])
 
@@ -17,9 +17,9 @@ export const isReadinessCheck = (pathname: string): boolean => {
 }
 
 export const handleReadinessCheck = (_req: IncomingMessage, res: ServerResponse): void => {
-  if (supergraph) {
+  if (isInitialized()) {
     sendJson(res, 200, { status: 'ready' })
   } else {
-    sendJson(res, 503, { status: 'not ready', reason: 'supergraph not loaded' })
+    sendJson(res, 503, { status: 'not ready', reason: 'K8s auth not initialized' })
   }
 }
