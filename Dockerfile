@@ -34,9 +34,8 @@ RUN npm ci --omit=dev
 COPY --from=builder /app/dist/gateway ./dist/gateway
 COPY --from=builder /app/dist/shared ./dist/shared
 
-# Copy runtime configuration and supergraph
+# Copy runtime configuration
 COPY config/ ./config/
-COPY src/mesh/gen/ ./src/mesh/gen/
 
 EXPOSE 4000
 
