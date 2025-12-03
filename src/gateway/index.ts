@@ -1,6 +1,6 @@
 import { createGatewayServer } from './server'
 import { env, scopedEndpoints } from './config'
-import { initAuth } from './auth'
+import { initAuth, getK8sServer } from './auth'
 import { log } from '@/shared/utils'
 
 // Initialize K8s authentication before starting the server
@@ -15,12 +15,14 @@ try {
 const server = createGatewayServer()
 
 server.listen(env.port, () => {
-  log.info(`Gateway ready at http://localhost:${env.port}/graphql`)
+  log.info(`Gateway listening on port ${env.port}`)
+  log.info(`K8s API server: ${getK8sServer()}`)
+  log.info('Endpoints: /graphql, /healthcheck, /readiness')
 
   if (scopedEndpoints.length > 0) {
-    log.info('Valid scoped endpoints:')
+    log.info('Scoped endpoints:')
     for (const endpoint of scopedEndpoints) {
-      log.info(`  http://localhost:${env.port}${endpoint}`)
+      log.info(`  ${endpoint}`)
     }
   }
 })
