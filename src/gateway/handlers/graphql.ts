@@ -71,7 +71,7 @@ export const handleGraphQL: GatewayHandler = async (req, res) => {
     log.info(`Scoped request: ${scoped.kind}/${scoped.resourceName}`)
     setScopedHeaders(req, scoped)
   } else {
-    log.debug('Root GraphQL request')
+    log.info('Root GraphQL request')
     req.headers['x-resource-endpoint-prefix'] = ''
   }
 

@@ -1,6 +1,6 @@
+/** API path discovered from OpenAPI endpoint (e.g., "apis/iam.miloapis.com/v1alpha1") */
 export type ApiEntry = {
-  group: string
-  version: string
+  path: string
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error'

@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs'
-import { resolve } from 'node:path'
-import yaml from 'yaml'
 import { createGatewayRuntime } from '@graphql-hive/gateway'
 import { unifiedGraphHandler } from '@graphql-hive/router-runtime'
 import { composeSubgraphs } from '@graphql-mesh/compose-cli'
@@ -10,12 +7,42 @@ import { getK8sServer, getMTLSFetch } from '@/gateway/auth'
 import { log } from '@/shared/utils'
 import type { ApiEntry } from '@/shared/types'
 
-const ROOT_DIR = resolve(__dirname, '../../..')
+/** Response shape from /openapi/v3 endpoint */
+interface OpenAPIPathsResponse {
+  paths: Record<string, { serverRelativeURL: string }>
+}
 
-// Load API configuration from YAML
-const apis = yaml.parse(
-  readFileSync(resolve(ROOT_DIR, 'config/resources/apis.yaml'), 'utf8')
-) as ApiEntry[]
+/**
+ * Fetch API list dynamically from the K8s OpenAPI endpoint.
+ * Returns paths like "apis/iam.miloapis.com/v1alpha1".
+ * Called on each polling interval to pick up real-time updates.
+ */
+const fetchApisFromOpenAPI = async (): Promise<ApiEntry[]> => {
+  const server = getK8sServer()
+  const fetchFn = getMTLSFetch()
+  const openApiUrl = `${server}/openapi/v3`
+
+  try {
+    log.info(`Fetching API list from ${openApiUrl}`)
+    const response = await fetchFn(openApiUrl)
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch OpenAPI paths: ${response.status} ${response.statusText}`)
+    }
+
+    const data = (await response.json()) as OpenAPIPathsResponse
+    const apis = Object.keys(data.paths).map((path) => ({ path }))
+
+    log.info(`Discovered ${apis.length} APIs from OpenAPI endpoint`, {
+      apis: apis.map((a) => a.path),
+    })
+
+    return apis
+  } catch (error) {
+    log.error(`Failed to fetch APIs from OpenAPI endpoint: ${error}`)
+    throw error
+  }
+}
 
 /** Logger wrapper compatible with GraphQL Mesh Logger interface */
 const meshLogger = {
@@ -28,37 +55,49 @@ const meshLogger = {
 }
 
 /**
+ * Derive a unique subgraph name from an API path.
+ * e.g., "apis/iam.miloapis.com/v1alpha1" -> "APIS_IAM_MILOAPIS_COM_V1ALPHA1"
+ * e.g., "api/v1" -> "API_V1"
+ */
+const getSubgraphName = (path: string): string => {
+  return path
+    .replace(/[^a-zA-Z0-9]/g, '_') // Replace non-alphanumeric with underscores
+    .replace(/_+/g, '_') // Collapse multiple underscores
+    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
+    .toUpperCase()
+}
+
+/**
  * Create subgraph handlers for each API defined in the configuration.
  * Each subgraph loads its schema from the K8s API server's OpenAPI endpoint.
  */
-const getSubgraphs = () => {
+const getSubgraphs = (apis: ApiEntry[]) => {
   const server = getK8sServer()
   const fetchFn = getMTLSFetch()
 
-  return apis.map(({ group, version }) => ({
-    sourceHandler: loadOpenAPISubgraph(
-      // subgraph name e.g. IAM_V1ALPHA1
-      `${group.split('.')[0].toUpperCase()}_${version.toUpperCase()}`,
-      {
-        source: `${server}/openapi/v3/apis/${group}/${version}`,
-        endpoint: `${server}{context.headers.x-resource-endpoint-prefix}`,
-        fetch: fetchFn,
-        operationHeaders: {
-          Authorization: '{context.headers.authorization}',
-        },
-      }
-    ),
+  return apis.map(({ path }) => ({
+    sourceHandler: loadOpenAPISubgraph(getSubgraphName(path), {
+      source: `${server}/openapi/v3/${path}`,
+      endpoint: `${server}{context.headers.x-resource-endpoint-prefix}`,
+      fetch: fetchFn,
+      operationHeaders: {
+        Authorization: '{context.headers.authorization}',
+      },
+    }),
   }))
 }
 
 /**
  * Compose supergraph by fetching OpenAPI specs at runtime.
  * Called on startup and periodically based on pollingInterval.
+ * Fetches API list from OpenAPI endpoint on each call for real-time discovery.
  */
 const composeSupergraph = async (): Promise<string> => {
   log.info('Composing supergraph from OpenAPI specs...')
 
-  const handlers = getSubgraphs()
+  // Fetch APIs dynamically from OpenAPI endpoint on each poll
+  const apis = await fetchApisFromOpenAPI()
+  const handlers = getSubgraphs(apis)
   const subgraphs = await Promise.all(
     handlers.map(async ({ sourceHandler }) => {
       const result = sourceHandler({
