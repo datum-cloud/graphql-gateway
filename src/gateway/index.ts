@@ -1,6 +1,16 @@
 import { createGatewayServer } from './server'
 import { env, scopedEndpoints } from './config'
+import { initAuth } from './auth'
 import { log } from '@/shared/utils'
+
+// Initialize K8s authentication before starting the server
+try {
+  initAuth()
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error)
+  log.error('Failed to initialize K8s auth', { error: message })
+  process.exit(1)
+}
 
 const server = createGatewayServer()
 

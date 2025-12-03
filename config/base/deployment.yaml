@@ -39,12 +39,18 @@ spec:
           env:
             - name: LOGGING
               value: debug
-            - name: DATUM_BASE_URL
-              value: https://milo-apiserver.datum-system.svc.cluster.local:6443
-          envFrom:
-            - secretRef:
-                # Must contain the DATUM_TOKEN environment variable
-                name: graphql-gateway
+            - name: KUBECONFIG
+              value: /etc/milo-control-plane/config/kubeconfig
+          volumeMounts:
+            - name: milo-control-plane-kubeconfig
+              mountPath: /etc/milo-control-plane/config
+              readOnly: true
+            - name: milo-control-plane-certs
+              mountPath: /etc/kubernetes/pki/client
+              readOnly: true
+            - name: trust-bundle
+              mountPath: /etc/kubernetes/pki/trust
+              readOnly: true
           resources:
             limits:
               cpu: 1
@@ -67,6 +73,30 @@ spec:
               path: /readiness
               port: 4000
               scheme: HTTP
+      volumes:
+        - name: milo-control-plane-kubeconfig
+          configMap:
+            name: milo-control-plane-kubeconfig
+            items:
+              - key: kubeconfig
+                path: kubeconfig
+        - name: milo-control-plane-certs
+          csi:
+            driver: csi.cert-manager.io
+            readOnly: true
+            volumeAttributes:
+              csi.cert-manager.io/issuer-name: datum-control-plane
+              csi.cert-manager.io/issuer-kind: ClusterIssuer
+              csi.cert-manager.io/common-name: graphql-gateway
+              csi.cert-manager.io/fs-group: '65534'
+              csi.cert-manager.io/organizations: system:masters
+              csi.cert-manager.io/key-usages: client auth
+        - name: trust-bundle
+          configMap:
+            name: datum-control-plane-trust-bundle
+            items:
+              - key: ca.crt
+                path: ca.crt
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
