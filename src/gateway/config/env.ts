@@ -14,6 +14,6 @@ export const env = {
   /** Path to the KUBECONFIG file (required) */
   kubeconfigPath: process.env.KUBECONFIG || '',
 
-  /** Polling interval for supergraph composition in milliseconds (default: 120000) */
-  pollingInterval: Number(process.env.POLLING_INTERVAL) || 120_000,
+  /** Polling interval for supergraph composition in milliseconds (default: 20m) */
+  pollingInterval: Number(process.env.POLLING_INTERVAL) || 1_200_000,
 }

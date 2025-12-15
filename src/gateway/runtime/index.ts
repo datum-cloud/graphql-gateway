@@ -87,10 +87,14 @@ const getSubgraphs = (apis: ApiEntry[]) => {
   }))
 }
 
+/** Cached supergraph SDL - updated by background polling */
+let supergraphSdl: string = ''
+
 /**
  * Compose supergraph by fetching OpenAPI specs at runtime.
  * Called on startup and periodically based on pollingInterval.
  * Fetches API list from OpenAPI endpoint on each call for real-time discovery.
+ * Updates the cached supergraphSdl variable.
  */
 const composeSupergraph = async (): Promise<string> => {
   log.info('Composing supergraph from OpenAPI specs...')
@@ -111,16 +115,53 @@ const composeSupergraph = async (): Promise<string> => {
   )
 
   const result = composeSubgraphs(subgraphs)
+  supergraphSdl = result.supergraphSdl
   log.info('Supergraph composed successfully')
+
   return result.supergraphSdl
 }
 
 /**
- * Gateway runtime instance with dynamic supergraph composition.
- * Automatically recomposes the supergraph based on pollingInterval.
+ * Returns the cached supergraph SDL.
+ * Falls back to composing if not ready (safety mechanism).
+ */
+const getSupergraph = async (): Promise<string> => {
+  if (!supergraphSdl) {
+    log.warn('Supergraph not ready, composing on demand...')
+    return composeSupergraph()
+  }
+  return supergraphSdl
+}
+
+/**
+ * Start background polling to refresh the supergraph SDL.
+ */
+const startPolling = (): void => {
+  setInterval(async () => {
+    try {
+      await composeSupergraph()
+    } catch (error) {
+      log.error(`Failed to refresh supergraph: ${error}`)
+    }
+  }, env.pollingInterval)
+}
+
+/**
+ * Initialize the gateway: compose supergraph eagerly, then start background polling.
+ * Must be called before handling requests.
+ */
+export const initializeGateway = async (): Promise<void> => {
+  await composeSupergraph()
+  startPolling()
+  log.info(`Background polling started (interval: ${env.pollingInterval}ms)`)
+}
+
+/**
+ * Gateway runtime instance.
+ * Uses the cached supergraph SDL which is refreshed by background polling.
  */
 export const gateway = createGatewayRuntime({
-  supergraph: composeSupergraph,
+  supergraph: getSupergraph,
   pollingInterval: env.pollingInterval,
   logging: env.logLevel,
   unifiedGraphHandler,
