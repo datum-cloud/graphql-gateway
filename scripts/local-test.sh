@@ -246,6 +246,8 @@ run_gateway() {
   
   cd "$(dirname "$0")/.."
   
+  npm install
+  
   NODE_EXTRA_CA_CERTS="$LOCAL_DIR/pki/trust/ca.crt" \
   KUBECONFIG="$LOCAL_DIR/config/kubeconfig" \
   npm run dev
