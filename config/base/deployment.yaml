@@ -89,7 +89,6 @@ spec:
               csi.cert-manager.io/issuer-kind: ClusterIssuer
               csi.cert-manager.io/common-name: graphql-gateway
               csi.cert-manager.io/fs-group: '65534'
-              csi.cert-manager.io/organizations: system:masters
               csi.cert-manager.io/key-usages: client auth
         - name: trust-bundle
           configMap:

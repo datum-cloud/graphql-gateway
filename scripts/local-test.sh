@@ -116,9 +116,6 @@ spec:
     name: datum-control-plane
     kind: ClusterIssuer
   commonName: graphql-gateway-local
-  subject:
-    organizations:
-      - system:masters
   usages:
     - client auth
   duration: 24h
