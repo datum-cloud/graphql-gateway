@@ -1,0 +1,9 @@
+# Parent resources that can scope GraphQL queries
+# Users can query via /{apiGroup}/{version}/{kind}s/{name}/graphql
+- apiGroup: resourcemanager.miloapis.com
+  version: v1alpha1
+  kind: Organization
+
+- apiGroup: resourcemanager.miloapis.com
+  version: v1alpha1
+  kind: Project

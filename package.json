@@ -1,25 +1,44 @@
 {
-  "name": "graphql",
+  "name": "graphql-gateway",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "GraphQL Gateway with scoped resource support",
+  "main": "dist/gateway/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "supergraph:compose": "npx mesh-compose -o supergraph.graphql",
-    "dev": "npx hive-gateway supergraph",
-    "start:gateway": "docker build --build-arg DATUM_TOKEN=$DATUM_TOKEN --build-arg DATUM_BASE_URL=$DATUM_BASE_URL -t graphql-gateway . && docker run --rm -p 4000:4000 graphql-gateway && docker rmi graphql-gateway"
+    "dev": "tsx src/gateway/index.ts",
+    "build": "tsc && tsc-alias",
+    "start": "node dist/gateway/index.js",
+    "local:setup": "bash scripts/local-test.sh",
+    "supergraph:compose": "npx mesh-compose -c src/mesh/index.ts -o src/mesh/gen/supergraph.graphql",
+    "docker:gateway": "docker build -t graphql-gateway . && docker run --rm -p 4000:4000 graphql-gateway && docker rmi graphql-gateway",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
   },
-  "keywords": [],
+  "keywords": [
+    "graphql",
+    "gateway",
+    "api"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "@graphql-hive/gateway": "^2.1.19",
+    "@graphql-hive/router-runtime": "^1.0.1",
     "@graphql-mesh/compose-cli": "^1.5.3",
+    "@kubernetes/client-node": "^1.4.0",
     "@omnigraph/openapi": "^0.109.23",
     "yaml": "^2.3.2"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1"
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "eslint": "^9.39.1",
+    "prettier": "^3.7.3",
+    "tsc-alias": "^1.8.16",
+    "tsx": "^4.19.0",
+    "typescript": "^5.3.0",
+    "typescript-eslint": "^8.48.1"
   }
 }

@@ -1,34 +1,42 @@
-FROM node:20-alpine AS builder
+# --- Stage 1: Build ---
+FROM node:22-slim AS builder
 
 WORKDIR /app
 
-ARG DATUM_TOKEN
-ENV DATUM_TOKEN=$DATUM_TOKEN
-
-ARG DATUM_BASE_URL
-ENV DATUM_BASE_URL=$DATUM_BASE_URL
-
-# Install dependencies (needed for mesh compose)
+# Copy package files
 COPY package.json package-lock.json ./
+
+# Install all dependencies (including devDependencies for build)
 RUN npm ci
 
-# Copy composition config and API descriptions
-COPY mesh.config.ts ./
-COPY config/apis.yaml ./config/apis.yaml
+# Copy source code and config
+COPY tsconfig.json ./
+COPY src/ ./src/
 
-# Generate the supergraph at build time
-RUN npx mesh-compose -o supergraph.graphql
+# Build the application
+RUN npm run build
 
-# --- Runtime image: Hive Gateway ---
-FROM ghcr.io/graphql-hive/gateway:2.1.19
-RUN npm i @graphql-mesh/transport-rest
+# --- Stage 2: Runtime ---
+FROM node:22-slim
 
-WORKDIR /gateway
+WORKDIR /app
 
-# Copy generated supergraph and gateway configuration
-COPY --from=builder /app/supergraph.graphql ./supergraph.graphql
-COPY gateway.config.ts ./gateway.config.ts
+# Set the environment to production
+ENV NODE_ENV=production
+
+# Copy package files
+COPY package.json package-lock.json ./
+
+# Install only production dependencies
+RUN npm ci --omit=dev
+
+# Copy compiled gateway and shared code from builder
+COPY --from=builder /app/dist/gateway ./dist/gateway
+COPY --from=builder /app/dist/shared ./dist/shared
+
+# Copy runtime configuration
+COPY config/ ./config/
 
 EXPOSE 4000
 
-CMD ["supergraph", "--hive-router-runtime"]
+CMD ["node", "dist/gateway/index.js"]
