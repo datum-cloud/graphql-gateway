@@ -16,4 +16,7 @@ export const env = {
 
   /** Polling interval for supergraph composition in milliseconds (default: 20m) */
   pollingInterval: Number(process.env.POLLING_INTERVAL) || 1_200_000,
+
+  /** OTLP URL for telemetry */
+  otlpUrl: process.env.OTLP_URL || '',
 }

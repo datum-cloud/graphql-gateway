@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import yaml from 'yaml'
 import type { ParentResource } from '@/gateway/types'
 
-const ROOT_DIR = resolve(__dirname, '../../..')
+const ROOT_DIR = process.cwd()
 
 // Load parent resources configuration from YAML
 const parentResourcesPath = resolve(ROOT_DIR, 'config/resources/parent-resources.yaml')
