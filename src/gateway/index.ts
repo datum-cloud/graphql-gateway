@@ -1,3 +1,6 @@
+// Telemetry must be initialized before any other imports
+import './telemetry/telemetry'
+
 import { createGatewayServer } from './server'
 import { env, scopedEndpoints } from './config'
 import { initAuth, getK8sServer } from './auth'

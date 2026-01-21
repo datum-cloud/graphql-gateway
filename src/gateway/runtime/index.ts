@@ -1,4 +1,5 @@
 import { createGatewayRuntime } from '@graphql-hive/gateway'
+import { useOpenTelemetry } from '@graphql-hive/plugin-opentelemetry'
 import { unifiedGraphHandler } from '@graphql-hive/router-runtime'
 import { composeSubgraphs } from '@graphql-mesh/compose-cli'
 import { loadOpenAPISubgraph } from '@omnigraph/openapi'
@@ -45,10 +46,11 @@ const fetchApisFromOpenAPI = async (): Promise<ApiEntry[]> => {
 }
 
 /** Logger wrapper compatible with GraphQL Mesh Logger interface */
+const noop = () => {}
 const meshLogger = {
-  log: console.log.bind(console),
-  debug: console.debug.bind(console),
-  info: console.info.bind(console),
+  log: noop,
+  debug: noop,
+  info: noop,
   warn: console.warn.bind(console),
   error: console.error.bind(console),
   child: () => meshLogger,
@@ -165,4 +167,8 @@ export const gateway = createGatewayRuntime({
   pollingInterval: env.pollingInterval,
   logging: env.logLevel,
   unifiedGraphHandler,
+  plugins: () => [
+    // Uses the SDK configured in telemetry/telemetry.ts via openTelemetrySetup
+    useOpenTelemetry({}),
+  ],
 })

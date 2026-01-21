@@ -41,6 +41,8 @@ spec:
               value: debug
             - name: KUBECONFIG
               value: /etc/milo-control-plane/config/kubeconfig
+            - name: OTLP_URL
+              value: opentelemetry-collector-collector.open-telemetry-system.svc.cluster.local:4317
           volumeMounts:
             - name: milo-control-plane-kubeconfig
               mountPath: /etc/milo-control-plane/config

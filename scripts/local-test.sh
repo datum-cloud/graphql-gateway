@@ -72,6 +72,32 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Setup Functions
 # =============================================================================
 
+start_jaeger() {
+  log_info "Checking Jaeger container..."
+  
+  # Check if jaeger container exists
+  if docker ps -a --format '{{.Names}}' | grep -q '^jaeger$'; then
+    # Container exists, check if running
+    if docker ps --format '{{.Names}}' | grep -q '^jaeger$'; then
+      log_info "Jaeger is already running"
+    else
+      log_info "Starting existing Jaeger container..."
+      docker start jaeger
+    fi
+  else
+    log_info "Creating and starting Jaeger container..."
+    docker run -d --name jaeger \
+      -p 16686:16686 \
+      -p 4317:4317 \
+      -p 4318:4318 \
+      jaegertracing/all-in-one@v1.76.0
+  fi
+  
+  # Wait for Jaeger to be ready
+  sleep 2
+  log_info "Jaeger UI available at http://localhost:16686"
+}
+
 setup_directories() {
   log_info "Creating local directory structure..."
   mkdir -p "$LOCAL_DIR/pki/client"
@@ -247,6 +273,7 @@ run_gateway() {
   
   NODE_EXTRA_CA_CERTS="$LOCAL_DIR/pki/trust/ca.crt" \
   KUBECONFIG="$LOCAL_DIR/config/kubeconfig" \
+  OTLP_URL="${OTLP_URL:-localhost:4317}" \
   npm run dev
 }
 
@@ -296,6 +323,7 @@ full_setup() {
   echo ""
   
   setup_directories
+  start_jaeger
   extract_ca_cert
   create_client_cert
   extract_client_cert
@@ -323,6 +351,9 @@ case "${1:-all}" in
       log_error "Setup not complete. Run './scripts/local-test.sh setup' first"
       exit 1
     fi
+    
+    # Start Jaeger if not running
+    start_jaeger
     
     # Start port-forward if not running
     if [ ! -f "$LOCAL_DIR/port-forward.pid" ] || ! kill -0 $(cat "$LOCAL_DIR/port-forward.pid") 2>/dev/null; then
