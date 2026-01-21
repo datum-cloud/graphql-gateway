@@ -5,11 +5,11 @@
   "main": "dist/gateway/index.js",
   "scripts": {
     "dev": "tsx src/gateway/index.ts",
-    "build": "tsc && tsc-alias",
+    "build": "node esbuild.config.mjs",
     "start": "node dist/gateway/index.js",
     "local:setup": "bash scripts/local-test.sh",
     "supergraph:compose": "npx mesh-compose -c src/mesh/index.ts -o src/mesh/gen/supergraph.graphql",
-    "docker:gateway": "docker build -t graphql-gateway . && docker run --rm -p 4000:4000 graphql-gateway && docker rmi graphql-gateway",
+    "docker:gateway": "docker build --no-cache -t graphql-gateway . && docker run --rm -p 4000:4000 graphql-gateway && docker rmi graphql-gateway",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -22,7 +22,7 @@
   ],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@graphql-hive/gateway": "^2.1.19",
     "@graphql-hive/router-runtime": "^1.0.1",
@@ -36,6 +36,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
+    "esbuild": "^0.27.2",
     "eslint": "^9.39.1",
     "prettier": "^3.7.3",
     "tsc-alias": "^1.8.16",

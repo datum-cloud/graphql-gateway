@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # Copy source code and config
-COPY tsconfig.json ./
+COPY tsconfig.json esbuild.config.mjs ./
 COPY src/ ./src/
 
 # Build the application
@@ -30,9 +30,8 @@ COPY package.json package-lock.json ./
 # Install only production dependencies
 RUN npm ci --omit=dev
 
-# Copy compiled gateway and shared code from builder
-COPY --from=builder /app/dist/gateway ./dist/gateway
-COPY --from=builder /app/dist/shared ./dist/shared
+# Copy compiled gateway code (bundled by esbuild)
+COPY --from=builder /app/dist ./dist
 
 # Copy runtime configuration
 COPY config/ ./config/
