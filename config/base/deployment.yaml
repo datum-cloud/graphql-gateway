@@ -38,7 +38,7 @@ spec:
               protocol: TCP
           env:
             - name: LOGGING
-              value: debug
+              value: info
             - name: KUBECONFIG
               value: /etc/milo-control-plane/config/kubeconfig
             - name: OTLP_URL
