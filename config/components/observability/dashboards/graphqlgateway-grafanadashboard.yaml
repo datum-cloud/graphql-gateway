@@ -3,12 +3,12 @@ kind: GrafanaDashboard
 metadata:
   name: graphqlgateway-grafanadashboard
   labels:
-    dashboards: grafana
+    dashboards: vm-grafana
 spec:
   allowCrossNamespaceImport: true
   instanceSelector:
     matchLabels:
-      dashboards: grafana
+      dashboards: vm-grafana
   resyncPeriod: 30s
   configMapRef:
     name: graphqlgateway-grafanadashboard
