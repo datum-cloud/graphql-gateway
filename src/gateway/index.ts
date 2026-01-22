@@ -31,7 +31,7 @@ const main = async () => {
   server.listen(env.port, () => {
     log.info(`Gateway listening on port ${env.port}`)
     log.info(`K8s API server: ${getK8sServer()}`)
-    log.info('Endpoints: /graphql, /healthcheck, /readiness')
+    log.info('Endpoints: /graphql, /healthcheck, /readiness, /metrics')
 
     if (scopedEndpoints.length > 0) {
       log.info('Scoped endpoints:')

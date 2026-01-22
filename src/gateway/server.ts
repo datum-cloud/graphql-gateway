@@ -9,6 +9,8 @@ import {
   handleReadinessCheck,
   isGraphQLEndpoint,
   handleGraphQL,
+  isMetrics,
+  handleMetrics,
 } from './handlers'
 
 export const createGatewayServer = () => {
@@ -16,22 +18,30 @@ export const createGatewayServer = () => {
     const url = parseUrl(req.url!, req.headers.host!)
     const { pathname } = url
 
-    // Log incoming request (debug level to avoid noise)
-    log.info(`${req.method} ${pathname}`)
+    const logMessage = `${req.method} ${pathname}`
 
     // GraphQL endpoints (root and scoped)
     if (isGraphQLEndpoint(pathname)) {
+      log.info(logMessage)
       return handleGraphQL(req, res)
     }
 
     // Health check endpoints (liveness) - don't log these to avoid noise
     if (isHealthCheck(pathname)) {
+      log.debug(logMessage)
       return handleHealthCheck(req, res)
     }
 
     // Readiness endpoint - don't log these to avoid noise
     if (isReadinessCheck(pathname)) {
+      log.debug(logMessage)
       return handleReadinessCheck(req, res)
+    }
+
+    // Metrics endpoint
+    if (isMetrics(pathname)) {
+      log.info(logMessage)
+      return handleMetrics(req, res)
     }
 
     // 404 for everything else

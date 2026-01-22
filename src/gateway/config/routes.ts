@@ -35,4 +35,10 @@ export const SCOPED_RESOURCE_PATTERN =
     : null
 
 // All available endpoints for documentation
-export const availableEndpoints = ['/graphql', '/healthcheck', '/readiness', ...scopedEndpoints]
+export const availableEndpoints = [
+  '/graphql',
+  '/healthcheck',
+  '/readiness',
+  '/metrics',
+  ...scopedEndpoints,
+]
