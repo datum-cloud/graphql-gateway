@@ -72,30 +72,69 @@ log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 # Setup Functions
 # =============================================================================
 
-start_jaeger() {
-  log_info "Checking Jaeger container..."
+start_lgtm() {
+  log_info "Checking Grafana LGTM container..."
   
-  # Check if jaeger container exists
-  if docker ps -a --format '{{.Names}}' | grep -q '^jaeger$'; then
+  # Get the script directory for mounting grafana configs
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+  
+  # Create Prometheus config to scrape gateway metrics
+  PROM_CONFIG="$LOCAL_DIR/prometheus.yaml"
+  cat > "$PROM_CONFIG" << 'EOF'
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Scrape GraphQL Gateway metrics
+  - job_name: 'graphql-gateway'
+    static_configs:
+      - targets: ['host.docker.internal:4000']
+    metrics_path: /metrics
+    scrape_interval: 10s
+EOF
+  
+  # Check if lgtm container exists
+  if docker ps -a --format '{{.Names}}' | grep -q '^lgtm$'; then
     # Container exists, check if running
-    if docker ps --format '{{.Names}}' | grep -q '^jaeger$'; then
-      log_info "Jaeger is already running"
+    if docker ps --format '{{.Names}}' | grep -q '^lgtm$'; then
+      log_info "Grafana LGTM is already running"
     else
-      log_info "Starting existing Jaeger container..."
-      docker start jaeger
+      log_info "Starting existing Grafana LGTM container..."
+      docker start lgtm
     fi
   else
-    log_info "Creating and starting Jaeger container..."
-    docker run -d --name jaeger \
-      -p 16686:16686 \
+    log_info "Creating and starting Grafana LGTM container..."
+    # Grafana LGTM: Loki (logs), Grafana (UI), Tempo (traces), Mimir (metrics)
+    # Ports:
+    #   3000: Grafana UI
+    #   4317: OTLP gRPC (traces & metrics)
+    #   4318: OTLP HTTP (traces & metrics)
+    #   9090: Prometheus metrics endpoint
+    docker run -d --name lgtm \
+      -p 3000:3000 \
       -p 4317:4317 \
       -p 4318:4318 \
-      jaegertracing/all-in-one@v1.76.0
+      -p 9090:9090 \
+      -v "$PROM_CONFIG:/otel-lgtm/prometheus.yaml:ro" \
+      -v "$PROJECT_DIR/grafana/provisioning/dashboards/default.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro" \
+      -v "$PROJECT_DIR/grafana/dashboards:/var/lib/grafana/dashboards:ro" \
+      -e GF_AUTH_ANONYMOUS_ENABLED=true \
+      -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+      -e GF_AUTH_DISABLE_LOGIN_FORM=true \
+      grafana/otel-lgtm:0.15.0
   fi
   
-  # Wait for Jaeger to be ready
-  sleep 2
-  log_info "Jaeger UI available at http://localhost:16686"
+  # Wait for LGTM to be ready
+  sleep 3
+  log_info "Grafana LGTM is starting..."
+  log_info "  Grafana UI:     http://localhost:3000"
+  log_info "  OTLP gRPC:      localhost:4317"
+  log_info "  OTLP HTTP:      localhost:4318"
+  log_info "  Prometheus:     http://localhost:9090"
+  log_info "  Scraping metrics from: http://localhost:4000/metrics"
+  log_info "  Dashboards loaded from: $PROJECT_DIR/grafana/dashboards/"
 }
 
 setup_directories() {
@@ -323,7 +362,7 @@ full_setup() {
   echo ""
   
   setup_directories
-  start_jaeger
+  start_lgtm
   extract_ca_cert
   create_client_cert
   extract_client_cert
@@ -352,8 +391,8 @@ case "${1:-all}" in
       exit 1
     fi
     
-    # Start Jaeger if not running
-    start_jaeger
+    # Start LGTM if not running
+    start_lgtm
     
     # Start port-forward if not running
     if [ ! -f "$LOCAL_DIR/port-forward.pid" ] || ! kill -0 $(cat "$LOCAL_DIR/port-forward.pid") 2>/dev/null; then
