@@ -119,7 +119,7 @@ EOF
       -p 9090:9090 \
       -v "$PROM_CONFIG:/otel-lgtm/prometheus.yaml:ro" \
       -v "$PROJECT_DIR/grafana/provisioning/dashboards/default.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro" \
-      -v "$PROJECT_DIR/grafana/dashboards:/var/lib/grafana/dashboards:ro" \
+      -v "$PROJECT_DIR/config:/app/config:ro" \
       -e GF_AUTH_ANONYMOUS_ENABLED=true \
       -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
       -e GF_AUTH_DISABLE_LOGIN_FORM=true \
@@ -134,7 +134,7 @@ EOF
   log_info "  OTLP HTTP:      localhost:4318"
   log_info "  Prometheus:     http://localhost:9090"
   log_info "  Scraping metrics from: http://localhost:4000/metrics"
-  log_info "  Dashboards loaded from: $PROJECT_DIR/grafana/dashboards/"
+  log_info "  Dashboards loaded from: $PROJECT_DIR/config/components/observability/dashboards/grafana/"
 }
 
 setup_directories() {
