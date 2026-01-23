@@ -119,6 +119,7 @@ EOF
       -p 9090:9090 \
       -v "$PROM_CONFIG:/otel-lgtm/prometheus.yaml:ro" \
       -v "$PROJECT_DIR/grafana/provisioning/dashboards/default.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/custom.yaml:ro" \
+      -v "$PROJECT_DIR/grafana/provisioning/datasources/default.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/custom.yaml:ro" \
       -v "$PROJECT_DIR/config:/app/config:ro" \
       -e GF_AUTH_ANONYMOUS_ENABLED=true \
       -e GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \

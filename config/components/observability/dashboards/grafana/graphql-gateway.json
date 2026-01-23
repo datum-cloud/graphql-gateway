@@ -87,7 +87,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "description": "The time needed to successfuly respond to GraphQL requests for quantiles p95, p90, p75 and p50.",
       "fieldConfig": {
@@ -169,7 +169,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -185,7 +185,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -202,7 +202,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.75, sum by(le) (rate(graphql_yoga_http_duration_bucket{url=~\".*/graphql$\", statusCode=\"200\"}[$__rate_interval])))",
@@ -215,7 +215,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.5, sum by(le) (rate(graphql_yoga_http_duration_bucket{url=~\".*/graphql$\", statusCode=\"200\"}[$__rate_interval])))",
@@ -232,7 +232,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "description": "Number of GraphQL request per seconds for each status codes.",
       "fieldConfig": {
@@ -311,7 +311,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -344,7 +344,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "description": "Response time of each subgraphs with quantiles p95, p80 and p50.",
       "fieldConfig": {
@@ -426,7 +426,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -442,7 +442,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.80, sum by(le, subgraphName) (rate(graphql_gateway_subgraph_execute_duration_bucket[$__rate_interval])))",
@@ -455,7 +455,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.50, sum by(le, subgraphName) (rate(graphql_gateway_subgraph_execute_duration_bucket[$__rate_interval])))",
@@ -472,7 +472,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "description": "Number of request per second for each subgraph.",
       "fieldConfig": {
@@ -550,7 +550,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -570,7 +570,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -651,7 +651,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -684,7 +684,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -760,7 +760,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -780,7 +780,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -857,7 +857,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "builder",
@@ -877,7 +877,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "description": "",
       "fieldConfig": {
@@ -959,7 +959,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -975,7 +975,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.90, sum by(le) (rate(graphql_envelop_phase_parse_bucket[$__rate_interval])))",
@@ -988,7 +988,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.75, sum by(le) (rate(graphql_envelop_phase_parse_bucket[$__rate_interval])))",
@@ -1001,7 +1001,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.50, sum by(le) (rate(graphql_envelop_phase_parse_bucket[$__rate_interval])))",
@@ -1018,7 +1018,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1099,7 +1099,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1115,7 +1115,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.9, sum by(le) (rate(graphql_envelop_phase_validate_bucket[$__rate_interval])))",
@@ -1128,7 +1128,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.75, sum by(le) (rate(graphql_envelop_phase_validate_bucket[$__rate_interval])))",
@@ -1141,7 +1141,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.5, sum by(le) (rate(graphql_envelop_phase_validate_bucket[$__rate_interval])))",
@@ -1158,7 +1158,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1239,7 +1239,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1255,7 +1255,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.9, sum by(le) (rate(graphql_envelop_phase_context_bucket[$__rate_interval])))",
@@ -1268,7 +1268,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.75, sum by(le) (rate(graphql_envelop_phase_context_bucket[$__rate_interval])))",
@@ -1281,7 +1281,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.5, sum by(le) (rate(graphql_envelop_phase_context_bucket[$__rate_interval])))",
@@ -1298,7 +1298,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "prometheus"
+        "uid": "service-metrics"
       },
       "fieldConfig": {
         "defaults": {
@@ -1375,7 +1375,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "disableTextWrap": false,
           "editorMode": "code",
@@ -1391,7 +1391,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.9, sum by(le) (rate(graphql_envelop_phase_execute_bucket[$__rate_interval])))",
@@ -1404,7 +1404,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.75, sum by(le) (rate(graphql_envelop_phase_execute_bucket[$__rate_interval])))",
@@ -1417,7 +1417,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "prometheus"
+            "uid": "service-metrics"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.5, sum by(le) (rate(graphql_envelop_phase_execute_bucket[$__rate_interval])))",
