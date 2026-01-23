@@ -10,6 +10,9 @@ spec:
     matchLabels:
       dashboards: vm-grafana
   resyncPeriod: 30s
+  datasources:
+    - inputName: DS_PROMETHEUS
+      datasourceName: Service Metrics
   configMapRef:
     name: graphqlgateway-grafanadashboard
     key: graphql-gateway.json
