@@ -1,10 +1,10 @@
-## GraphQL Gateway for Milo APIServer
+# GraphQL Gateway for Milo APIServer
 
 This project provides a **GraphQL gateway** that sits in front of Milo APIServer REST/OpenAPI services and exposes a unified GraphQL API. It uses **Hive Gateway** with dynamic supergraph composition from OpenAPI specs at runtime.
 
 > **Status**: This gateway is in an **initial, non‑production stage**. It is intended **only for local testing by the Datum team** and **is not production ready**.
 
-### Architecture
+## Architecture
 
 - **Dynamic Supergraph Composition**: The gateway dynamically fetches OpenAPI specs from the Milo APIServer and composes a unified GraphQL supergraph at runtime.
 - **mTLS Authentication**: Uses client certificates (mTLS) to authenticate with the Kubernetes API server.
@@ -20,13 +20,13 @@ This project provides a **GraphQL gateway** that sits in front of Milo APIServer
 
 ### Environment Variables
 
-| Variable              | Description                                        | Default           |
-| --------------------- | -------------------------------------------------- | ----------------- |
-| `PORT`                | Port the gateway listens on                        | `4000`            |
-| `KUBECONFIG`          | Path to kubeconfig file for K8s authentication     | Required          |
-| `POLLING_INTERVAL`    | Interval (ms) between supergraph recomposition     | `120000` (2 min)  |
-| `LOGGING`             | Log level (`debug`, `info`, `warn`, `error`)       | `info`            |
-| `NODE_EXTRA_CA_CERTS` | Path to CA certificate for trusting K8s API server | Required for mTLS |
+| Variable              | Description                                        | Default              |
+| --------------------- | -------------------------------------------------- | -------------------- |
+| `PORT`                | Port the gateway listens on                        | `4000`               |
+| `KUBECONFIG`          | Path to kubeconfig file for K8s authentication     | Required             |
+| `POLLING_INTERVAL`    | Interval (ms) between supergraph recomposition     | `1_200_000` (20 min) |
+| `LOGGING`             | Log level (`debug`, `info`, `warn`, `error`)       | `info`               |
+| `NODE_EXTRA_CA_CERTS` | Path to CA certificate for trusting K8s API server | Required for mTLS    |
 
 ### Project Scripts
 
@@ -80,6 +80,9 @@ The gateway is deployed to Kubernetes using the manifests in `config/base/`. Key
 - **Using the built‑in GraphQL UI**:
   - When running the gateway, it exposes a GraphQL endpoint at `http://127.0.0.1:4000/graphql`.
   - Open this URL in your browser to use the UI for exploring the schema and running queries against Milo.
+
+- **[Client Usage Guide](docs/CLIENT_USAGE.md)**:
+  - Check the detailed guide on how to setup `codegen` and use the gateway from a client application, including **Parent Resources** setup.
 
 - **Health Endpoints**:
   - `/healthcheck` - Liveness probe
