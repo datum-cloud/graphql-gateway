@@ -7,6 +7,7 @@ import { env } from '@/gateway/config'
 import { getK8sServer, getMTLSFetch } from '@/gateway/auth'
 import { log } from '@/shared/utils'
 import type { ApiEntry } from '@/shared/types'
+import { usePrometheusMetrics } from '@/gateway/metrics/metrics'
 
 /** Response shape from /openapi/v3 endpoint */
 interface OpenAPIPathsResponse {
@@ -167,8 +168,10 @@ export const gateway = createGatewayRuntime({
   pollingInterval: env.pollingInterval,
   logging: env.logLevel,
   unifiedGraphHandler,
-  plugins: () => [
+  plugins: (ctx) => [
     // Uses the SDK configured in telemetry/telemetry.ts via openTelemetrySetup
     useOpenTelemetry({}),
+    // Uses the SDK configured in metrics/metrics.ts via usePrometheusMetrics
+    usePrometheusMetrics(ctx),
   ],
 })

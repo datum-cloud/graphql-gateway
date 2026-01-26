@@ -3,3 +3,6 @@ resources:
   - service.yaml
   - http-route.yaml
   - milo-control-plane-kubeconfig.yaml
+
+components:
+  - ../components/observability
