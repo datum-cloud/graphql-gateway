@@ -7,3 +7,7 @@
 - apiGroup: resourcemanager.miloapis.com
   version: v1alpha1
   kind: Project
+
+- apiGroup: iam.miloapis.com
+  version: v1alpha1
+  kind: User
