@@ -1,0 +1,15 @@
+apiVersion: gateway.networking.k8s.io/v1alpha3
+kind: BackendTLSPolicy
+metadata:
+  name: graphql-gateway-backend-tls
+spec:
+  targetRefs:
+    - group: ''
+      kind: Service
+      name: graphql-gateway
+  validation:
+    caCertificateRefs:
+      - group: ''
+        kind: ConfigMap
+        name: datum-control-plane-trust-bundle
+    hostname: graphql-gateway.graphql-gateway.svc.cluster.local

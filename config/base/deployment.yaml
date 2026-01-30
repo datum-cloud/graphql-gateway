@@ -34,7 +34,7 @@ spec:
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 4000
-              name: http
+              name: https
               protocol: TCP
           env:
             - name: LOGGING
@@ -43,6 +43,8 @@ spec:
               value: /etc/milo-control-plane/config/kubeconfig
             - name: OTLP_URL
               value: opentelemetry-collector-collector.open-telemetry-system.svc.cluster.local:4317
+            - name: CERT_DIR
+              value: /etc/graphql-gateway/serving-certs
           volumeMounts:
             - name: milo-control-plane-kubeconfig
               mountPath: /etc/milo-control-plane/config
@@ -53,28 +55,31 @@ spec:
             - name: trust-bundle
               mountPath: /etc/kubernetes/pki/trust
               readOnly: true
+            - name: graphql-gateway-certs
+              mountPath: /etc/graphql-gateway/serving-certs
+              readOnly: true
           resources:
             limits:
               cpu: 1
               memory: 1Gi
           livenessProbe:
             failureThreshold: 3
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 120
+            periodSeconds: 20
             timeoutSeconds: 10
             httpGet:
               path: /healthcheck
               port: 4000
-              scheme: HTTP
+              scheme: HTTPS
           readinessProbe:
             failureThreshold: 3
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 120
+            periodSeconds: 20
             timeoutSeconds: 10
             httpGet:
               path: /readiness
               port: 4000
-              scheme: HTTP
+              scheme: HTTPS
       volumes:
         - name: milo-control-plane-kubeconfig
           configMap:
@@ -98,6 +103,16 @@ spec:
             items:
               - key: ca.crt
                 path: ca.crt
+        - name: graphql-gateway-certs
+          csi:
+            driver: csi.cert-manager.io
+            readOnly: true
+            volumeAttributes:
+              csi.cert-manager.io/issuer-name: datum-control-plane
+              csi.cert-manager.io/issuer-kind: ClusterIssuer
+              csi.cert-manager.io/common-name: graphql-gateway
+              csi.cert-manager.io/dns-names: graphql-gateway,graphql-gateway.graphql-gateway.svc,graphql-gateway.graphql-gateway.svc.cluster.local
+              csi.cert-manager.io/fs-group: '65532'
       dnsPolicy: ClusterFirst
       restartPolicy: Always
       terminationGracePeriodSeconds: 30

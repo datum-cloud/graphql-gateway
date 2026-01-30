@@ -13,11 +13,13 @@ spec:
       app.kubernetes.io/name: graphql-gateway
       app.kubernetes.io/instance: graphql-gateway
   endpoints:
-    - port: http
+    - port: https
       path: /metrics
       interval: 30s
       scrapeTimeout: 10s
-      scheme: http
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
       relabelings:
         # Add pod name label
         - sourceLabels: [__meta_kubernetes_pod_name]

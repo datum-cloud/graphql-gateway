@@ -19,4 +19,7 @@ export const env = {
 
   /** OTLP URL for telemetry */
   otlpUrl: process.env.OTLP_URL || '',
+
+  /** Directory containing TLS certificates for HTTPS (tls.crt and tls.key) */
+  certDir: process.env.CERT_DIR || '',
 }
