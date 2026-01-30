@@ -64,8 +64,8 @@ spec:
               memory: 1Gi
           livenessProbe:
             failureThreshold: 3
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 120
+            periodSeconds: 20
             timeoutSeconds: 10
             httpGet:
               path: /healthcheck
@@ -73,8 +73,8 @@ spec:
               scheme: HTTPS
           readinessProbe:
             failureThreshold: 3
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 120
+            periodSeconds: 20
             timeoutSeconds: 10
             httpGet:
               path: /readiness
