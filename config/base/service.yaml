@@ -9,10 +9,10 @@ metadata:
 spec:
   internalTrafficPolicy: Cluster
   ports:
-    - name: http
+    - name: https
       port: 4000
       protocol: TCP
-      targetPort: http
+      targetPort: https
   selector:
     app.kubernetes.io/component: backend
     app.kubernetes.io/instance: graphql-gateway

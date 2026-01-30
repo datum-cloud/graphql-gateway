@@ -89,6 +89,9 @@ global:
 scrape_configs:
   # Scrape GraphQL Gateway metrics
   - job_name: 'graphql-gateway'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
     static_configs:
       - targets: ['host.docker.internal:4000']
     metrics_path: /metrics
@@ -296,6 +299,21 @@ verify_connection() {
   fi
 }
 
+create_server_cert() {
+  log_info "Creating self-signed server certificate for localhost..."
+  
+  cert_dir="$LOCAL_DIR/pki/serving"
+  mkdir -p "$cert_dir"
+  
+  openssl req -x509 -newkey rsa:4096 -sha256 -days 365 \
+    -nodes -keyout "$cert_dir/tls.key" -out "$cert_dir/tls.crt" \
+    -subj "/CN=localhost" \
+    -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" \
+    2>/dev/null
+    
+  log_info "Server certificate created at $cert_dir"
+}
+
 run_gateway() {
   log_info "Starting GraphQL Gateway..."
   echo ""
@@ -304,6 +322,7 @@ run_gateway() {
   echo "  KUBECONFIG: $LOCAL_DIR/config/kubeconfig"
   echo "  CA Cert: $LOCAL_DIR/pki/trust/ca.crt"
   echo "  Server: https://${APISERVER_HOST}:${APISERVER_PORT}"
+  echo "  HTTPS Certs: $LOCAL_DIR/pki/serving"
   echo "========================================="
   echo ""
   
@@ -314,6 +333,7 @@ run_gateway() {
   NODE_EXTRA_CA_CERTS="$LOCAL_DIR/pki/trust/ca.crt" \
   KUBECONFIG="$LOCAL_DIR/config/kubeconfig" \
   OTLP_URL="${OTLP_URL:-localhost:4317}" \
+  CERT_DIR="$LOCAL_DIR/pki/serving" \
   npm run dev
 }
 
@@ -367,6 +387,7 @@ full_setup() {
   extract_ca_cert
   create_client_cert
   extract_client_cert
+  create_server_cert
   create_kubeconfig
   setup_hosts_entry
   start_port_forward

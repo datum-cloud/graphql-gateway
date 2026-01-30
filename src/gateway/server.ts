@@ -1,6 +1,8 @@
-import { createServer } from 'node:http'
+import { createServer } from 'node:https'
+import { readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { sendJson, parseUrl } from './utils/'
-import { availableEndpoints } from './config'
+import { availableEndpoints, env } from './config'
 import { log } from '@/shared/utils'
 import {
   isHealthCheck,
@@ -12,9 +14,48 @@ import {
   isMetrics,
   handleMetrics,
 } from './handlers'
+import type { IncomingMessage, ServerResponse } from 'node:http'
+
+/**
+ * Load TLS certificates from the configured directory.
+ * Panics if CERT_DIR is not set or certificates don't exist.
+ */
+const loadTlsOptions = () => {
+  const { certDir } = env
+  if (!certDir) {
+    log.error('CERT_DIR environment variable is required for HTTPS')
+    process.exit(1)
+  }
+
+  const certPath = join(certDir, 'tls.crt')
+  const keyPath = join(certDir, 'tls.key')
+
+  if (!existsSync(certPath)) {
+    log.error(`TLS certificate not found: ${certPath}`)
+    process.exit(1)
+  }
+
+  if (!existsSync(keyPath)) {
+    log.error(`TLS key not found: ${keyPath}`)
+    process.exit(1)
+  }
+
+  log.info(`Loading TLS certificates from ${certDir}`)
+  try {
+    return {
+      cert: readFileSync(certPath),
+      key: readFileSync(keyPath),
+    }
+  } catch (error) {
+    log.error(`Failed to read TLS certificates: ${error}`)
+    process.exit(1)
+  }
+}
 
 export const createGatewayServer = () => {
-  return createServer(async (req, res) => {
+  const tlsOptions = loadTlsOptions()
+
+  const handler = async (req: IncomingMessage, res: ServerResponse) => {
     const url = parseUrl(req.url!, req.headers.host!)
     const { pathname } = url
 
@@ -50,5 +91,8 @@ export const createGatewayServer = () => {
       error: 'Not Found',
       availableEndpoints,
     })
-  })
+  }
+
+  log.info('Starting server with HTTPS')
+  return createServer(tlsOptions, handler)
 }
