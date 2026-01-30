@@ -29,7 +29,7 @@ const main = async () => {
   const server = createGatewayServer()
 
   server.listen(env.port, () => {
-    log.info(`Gateway listening on port ${env.port}`)
+    log.info(`Gateway listening on port ${env.port} (HTTPS)`)
     log.info(`K8s API server: ${getK8sServer()}`)
     log.info('Endpoints: /graphql, /healthcheck, /readiness, /metrics')
 

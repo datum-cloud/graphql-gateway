@@ -2,6 +2,7 @@ resources:
   - deployment.yaml
   - service.yaml
   - http-route.yaml
+  - backend-tls-policy.yaml
   - milo-control-plane-kubeconfig.yaml
 
 components:
