@@ -12,6 +12,7 @@ spec:
     - name: https
       port: 4000
       protocol: TCP
+      appProtocol: https
       targetPort: https
   selector:
     app.kubernetes.io/component: backend
