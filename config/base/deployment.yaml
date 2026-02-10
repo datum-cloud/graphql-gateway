@@ -43,6 +43,16 @@ spec:
               value: /etc/milo-control-plane/config/kubeconfig
             - name: OTLP_URL
               value: opentelemetry-collector-collector.open-telemetry-system.svc.cluster.local:4317
+            - name: OTLP_TIMEOUT
+              value: '30000'
+            - name: OTLP_QUEUE_SIZE
+              value: '512'
+            - name: OTLP_BATCH_SIZE
+              value: '128'
+            - name: OTLP_SCHEDULED_DELAY_MILLIS
+              value: '2000'
+            - name: OTLP_EXPORT_TIMEOUT_MILLIS
+              value: '30000'
             - name: CERT_DIR
               value: /etc/graphql-gateway/serving-certs
           volumeMounts:
