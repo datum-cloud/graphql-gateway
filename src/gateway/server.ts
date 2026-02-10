@@ -81,7 +81,7 @@ export const createGatewayServer = () => {
 
     // Metrics endpoint
     if (isMetrics(pathname)) {
-      log.info(logMessage)
+      log.debug(logMessage)
       return handleMetrics(req, res)
     }
 
