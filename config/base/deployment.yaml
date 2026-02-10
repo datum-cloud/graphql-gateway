@@ -70,8 +70,8 @@ spec:
               readOnly: true
           resources:
             limits:
-              cpu: 1
-              memory: 1Gi
+              cpu: 2
+              memory: 2Gi
           livenessProbe:
             failureThreshold: 3
             initialDelaySeconds: 120
