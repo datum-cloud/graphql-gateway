@@ -20,21 +20,6 @@ export const env = {
   /** OTLP URL for telemetry */
   otlpUrl: process.env.OTLP_URL || '',
 
-  /** OTLP timeout in milliseconds */
-  otlpTimeout: Number(process.env.OTLP_TIMEOUT) || 30000,
-
-  /** OTLP queue size */
-  otlpQueueSize: Number(process.env.OTLP_QUEUE_SIZE) || 512,
-
-  /** OTLP batch size */
-  otlpBatchSize: Number(process.env.OTLP_BATCH_SIZE) || 128,
-
-  /** OTLP scheduled delay in milliseconds */
-  otlpScheduledDelayMillis: Number(process.env.OTLP_SCHEDULED_DELAY_MILLIS) || 2000,
-
-  /** OTLP export timeout in milliseconds */
-  otlpExportTimeoutMillis: Number(process.env.OTLP_EXPORT_TIMEOUT_MILLIS) || 30000,
-
   /** Directory containing TLS certificates for HTTPS (tls.crt and tls.key) */
   certDir: process.env.CERT_DIR || '',
 }

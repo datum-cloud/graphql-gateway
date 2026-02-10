@@ -52,11 +52,6 @@ const main = async () => {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'))
   process.on('SIGINT', () => shutdown('SIGINT'))
-
-  process.on('unhandledRejection', (reason, promise) => {
-    log.error('Unhandled Rejection at:', { promise, reason: String(reason) })
-    // Do not exit process here
-  })
 }
 
 main().catch((error) => {

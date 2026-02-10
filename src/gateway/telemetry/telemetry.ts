@@ -15,14 +15,7 @@ if (env.otlpUrl) {
       exporter: new OTLPTraceExporter({
         url: env.otlpUrl,
         credentials: credentials.createInsecure(),
-        timeoutMillis: env.otlpTimeout,
       }),
-      batching: {
-        maxQueueSize: env.otlpQueueSize,
-        maxExportBatchSize: env.otlpBatchSize,
-        scheduledDelayMillis: env.otlpScheduledDelayMillis,
-        exportTimeoutMillis: env.otlpExportTimeoutMillis,
-      },
     },
 
     resource: {
