@@ -1,12 +1,10 @@
 import * as esbuild from 'esbuild'
 
-await esbuild.build({
-  entryPoints: ['src/gateway/index.ts'],
+const sharedConfig = {
   bundle: true,
   platform: 'node',
   target: 'node22',
   format: 'esm',
-  outfile: 'dist/gateway/index.js',
   sourcemap: true,
   // Mark node_modules as external to avoid bundling them
   packages: 'external',
@@ -19,4 +17,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 `,
   },
+}
+
+// Main gateway bundle
+await esbuild.build({
+  ...sharedConfig,
+  entryPoints: ['src/gateway/index.ts'],
+  outfile: 'dist/gateway/index.js',
+})
+
+// Composition worker – built as a separate bundle so the Worker thread can
+// load it independently. Must output to the same directory as index.js so
+// the relative path `./compose-worker.js` resolves correctly at runtime.
+await esbuild.build({
+  ...sharedConfig,
+  entryPoints: ['src/gateway/runtime/compose-worker.ts'],
+  outfile: 'dist/gateway/compose-worker.js',
 })

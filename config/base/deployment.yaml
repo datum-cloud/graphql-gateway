@@ -69,9 +69,12 @@ spec:
               mountPath: /etc/graphql-gateway/serving-certs
               readOnly: true
           resources:
-            limits:
+            requests:
               cpu: 2
               memory: 2Gi
+            limits:
+              cpu: 4
+              memory: 8Gi
           livenessProbe:
             failureThreshold: 3
             initialDelaySeconds: 120
