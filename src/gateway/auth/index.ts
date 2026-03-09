@@ -1,10 +1,12 @@
 import { env } from '@/gateway/config'
 import { getK8sMTLSConfig, createMTLSFetch } from '@/gateway/clients'
+import type { K8sMTLSConfig } from '@/gateway/clients'
 import { log } from '@/shared/utils'
 
 // K8s mTLS state
 let k8sServer: string | null = null
 let mtlsFetch: typeof fetch | null = null
+let mtlsConfig: K8sMTLSConfig | null = null
 let initialized = false
 
 /**
@@ -25,7 +27,7 @@ export function initAuth(): void {
     throw new Error('KUBECONFIG environment variable is required')
   }
 
-  const mtlsConfig = getK8sMTLSConfig({ kubeconfigPath: env.kubeconfigPath })
+  mtlsConfig = getK8sMTLSConfig({ kubeconfigPath: env.kubeconfigPath })
 
   k8sServer = mtlsConfig.server
   mtlsFetch = createMTLSFetch(mtlsConfig)
@@ -67,6 +69,18 @@ export function getMTLSFetch(): typeof fetch {
     throw new Error('K8s auth not initialized. Call initAuth() first.')
   }
   return mtlsFetch
+}
+
+/**
+ * Get the mTLS configuration (cert paths + server URL).
+ * Used by the composition worker thread to set up its own mTLS fetch.
+ * @throws Error if auth not initialized
+ */
+export function getMTLSConfig(): K8sMTLSConfig {
+  if (!mtlsConfig) {
+    throw new Error('K8s auth not initialized. Call initAuth() first.')
+  }
+  return mtlsConfig
 }
 
 /**
