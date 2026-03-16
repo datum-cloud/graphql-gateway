@@ -55,6 +55,9 @@ spec:
               value: '30000'
             - name: CERT_DIR
               value: /etc/graphql-gateway/serving-certs
+          envFrom:
+            - secretRef:
+                name: graphql-gateway
           volumeMounts:
             - name: milo-control-plane-kubeconfig
               mountPath: /etc/milo-control-plane/config
