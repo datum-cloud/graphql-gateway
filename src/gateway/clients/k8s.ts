@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import * as https from 'node:https'
 import { KubeConfig } from '@kubernetes/client-node'
+import * as Sentry from '@sentry/node'
 import { log } from '@/shared/utils'
 
 export interface K8sAuthConfig {
@@ -100,12 +101,16 @@ export function createMTLSFetch(mtlsConfig: K8sMTLSConfig): typeof fetch {
   const key = readFileSync(mtlsConfig.keyPath, 'utf8')
   const ca = readFileSync(mtlsConfig.caPath, 'utf8')
 
-  // Create HTTPS agent with mTLS
+  // Create HTTPS agent with mTLS and connection keep-alive to avoid
+  // a full TCP + mTLS handshake on every request.
   const agent = new https.Agent({
     cert,
     key,
     ca,
     rejectUnauthorized: true,
+    keepAlive: true,
+    keepAliveMsecs: 60_000,
+    maxSockets: 50,
   })
 
   log.info('mTLS fetch created successfully')
@@ -114,46 +119,80 @@ export function createMTLSFetch(mtlsConfig: K8sMTLSConfig): typeof fetch {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     const parsedUrl = new URL(url)
+    const method = init?.method || 'GET'
 
-    return new Promise((resolve, reject) => {
-      const options: https.RequestOptions = {
-        hostname: parsedUrl.hostname,
-        port: parsedUrl.port || 443,
-        path: parsedUrl.pathname + parsedUrl.search,
-        method: init?.method || 'GET',
-        headers: init?.headers as Record<string, string>,
-        agent,
-      }
+    // Normalise headers to a plain object so https.request can read them
+    // regardless of whether the caller passed a Headers instance or a plain object.
+    const rawHeaders = init?.headers
+    const headers: Record<string, string> =
+      rawHeaders instanceof Headers
+        ? Object.fromEntries(rawHeaders.entries())
+        : (rawHeaders as Record<string, string>) ?? {}
 
-      const req = https.request(options, (res) => {
-        const chunks: Buffer[] = []
+    return Sentry.startSpan(
+      {
+        op: 'http.client',
+        name: `${method} ${parsedUrl.pathname}`,
+        attributes: {
+          'http.request.method': method,
+          'url.full': url,
+          'server.address': parsedUrl.hostname,
+          'server.port': Number(parsedUrl.port) || 443,
+        },
+      },
+      (span) =>
+        new Promise<Response>((resolve, reject) => {
+          const options: https.RequestOptions = {
+            hostname: parsedUrl.hostname,
+            port: parsedUrl.port || 443,
+            path: parsedUrl.pathname + parsedUrl.search,
+            method,
+            headers,
+            agent,
+          }
 
-        res.on('data', (chunk: Buffer) => chunks.push(chunk))
-        res.on('end', () => {
-          const body = Buffer.concat(chunks).toString('utf8')
+          const req = https.request(options, (res) => {
+            const chunks: Buffer[] = []
 
-          // Create a Response-like object
-          const response = new Response(body, {
-            status: res.statusCode || 200,
-            statusText: res.statusMessage || 'OK',
-            headers: new Headers(res.headers as Record<string, string>),
+            res.on('data', (chunk: Buffer) => chunks.push(chunk))
+            res.on('end', () => {
+              const statusCode = res.statusCode || 200
+              span.setAttribute('http.response.status_code', statusCode)
+              if (statusCode >= 400) {
+                span.setStatus({ code: 2, message: res.statusMessage || 'Error' })
+              }
+
+              const body = Buffer.concat(chunks).toString('utf8')
+              const response = new Response(body, {
+                status: statusCode,
+                statusText: res.statusMessage || 'OK',
+                headers: new Headers(res.headers as Record<string, string>),
+              })
+
+              resolve(response)
+            })
           })
 
-          resolve(response)
-        })
-      })
+          req.on('error', (error) => {
+            span.setStatus({ code: 2, message: error.message })
+            log.error('mTLS request failed', { url, error: error.message })
+            reject(error)
+          })
 
-      req.on('error', (error) => {
-        log.error('mTLS request failed', { url, error: error.message })
-        reject(error)
-      })
+          // Propagate abort signal so upstream requests are cancelled when the
+          // client disconnects — frees mTLS agent sockets without waiting for milo.
+          init?.signal?.addEventListener('abort', () => {
+            req.destroy()
+            reject(new DOMException('The operation was aborted.', 'AbortError'))
+          })
 
-      // Write body if present
-      if (init?.body) {
-        req.write(init.body)
-      }
+          // Write body if present
+          if (init?.body) {
+            req.write(init.body)
+          }
 
-      req.end()
-    })
+          req.end()
+        }),
+    )
   }
 }
