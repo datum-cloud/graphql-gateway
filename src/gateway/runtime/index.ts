@@ -1,157 +1,158 @@
-import { Worker } from 'node:worker_threads'
 import { createGatewayRuntime } from '@graphql-hive/gateway'
 import { useOpenTelemetry } from '@graphql-hive/plugin-opentelemetry'
 import { unifiedGraphHandler } from '@graphql-hive/router-runtime'
+import { composeSubgraphs } from '@graphql-mesh/compose-cli'
+import { loadOpenAPISubgraph } from '@omnigraph/openapi'
 import { env } from '@/gateway/config'
-import { getMTLSConfig } from '@/gateway/auth'
+import { getK8sServer, getMTLSFetch } from '@/gateway/auth'
 import { log } from '@/shared/utils'
+import type { ApiEntry } from '@/shared/types'
 import { usePrometheusMetrics } from '@/gateway/metrics/metrics'
 
-/** Cached supergraph SDL - updated by the worker after each composition cycle */
+/** Response shape from /openapi/v3 endpoint */
+interface OpenAPIPathsResponse {
+  paths: Record<string, { serverRelativeURL: string }>
+}
+
+/**
+ * Fetch API list dynamically from the K8s OpenAPI endpoint.
+ * Returns paths like "apis/iam.miloapis.com/v1alpha1".
+ * Called on each polling interval to pick up real-time updates.
+ */
+const fetchApisFromOpenAPI = async (): Promise<ApiEntry[]> => {
+  const server = getK8sServer()
+  const fetchFn = getMTLSFetch()
+  const openApiUrl = `${server}/openapi/v3`
+
+  try {
+    log.info(`Fetching API list from ${openApiUrl}`)
+    const response = await fetchFn(openApiUrl)
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch OpenAPI paths: ${response.status} ${response.statusText}`)
+    }
+
+    const data = (await response.json()) as OpenAPIPathsResponse
+    const apis = Object.keys(data.paths).map((path) => ({ path }))
+
+    log.info(`Discovered ${apis.length} APIs from OpenAPI endpoint`, {
+      apis: apis.map((a) => a.path),
+    })
+
+    return apis
+  } catch (error) {
+    log.error(`Failed to fetch APIs from OpenAPI endpoint: ${error}`)
+    throw error
+  }
+}
+
+/** Logger wrapper compatible with GraphQL Mesh Logger interface */
+const noop = () => {}
+const meshLogger = {
+  log: noop,
+  debug: noop,
+  info: noop,
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+  child: () => meshLogger,
+}
+
+/**
+ * Derive a unique subgraph name from an API path.
+ * e.g., "apis/iam.miloapis.com/v1alpha1" -> "APIS_IAM_MILOAPIS_COM_V1ALPHA1"
+ * e.g., "api/v1" -> "API_V1"
+ */
+const getSubgraphName = (path: string): string => {
+  return path
+    .replace(/[^a-zA-Z0-9]/g, '_') // Replace non-alphanumeric with underscores
+    .replace(/_+/g, '_') // Collapse multiple underscores
+    .replace(/^_|_$/g, '') // Trim leading/trailing underscores
+    .toUpperCase()
+}
+
+/**
+ * Create subgraph handlers for each API defined in the configuration.
+ * Each subgraph loads its schema from the K8s API server's OpenAPI endpoint.
+ */
+const getSubgraphs = (apis: ApiEntry[]) => {
+  const server = getK8sServer()
+  const fetchFn = getMTLSFetch()
+
+  return apis.map(({ path }) => ({
+    sourceHandler: loadOpenAPISubgraph(getSubgraphName(path), {
+      source: `${server}/openapi/v3/${path}`,
+      endpoint: `${server}{context.headers.x-resource-endpoint-prefix}`,
+      fetch: fetchFn,
+      operationHeaders: {
+        Authorization: '{context.headers.authorization}',
+      },
+    }),
+  }))
+}
+
+/** Cached supergraph SDL - updated by background polling */
 let supergraphSdl: string = ''
 
-/**
- * Guards against overlapping composition cycles.
- * When the polling interval fires while a cycle is already running the new
- * trigger is silently dropped – the in-progress result will be used instead.
- */
-let isComposing = false
-
-/** True once the first composition has succeeded and supergraphSdl is valid */
-let isReady = false
-
-/** Persistent worker thread that owns all composition CPU & I/O work */
-let composeWorker: Worker | null = null
+/** In-flight composition promise - prevents concurrent recompositions */
+let composeInFlight: Promise<string> | null = null
 
 /**
- * Reject function for the currently in-flight composeSupergraph() Promise.
+ * Compose supergraph by fetching OpenAPI specs at runtime.
+ * Called on startup and periodically based on pollingInterval.
+ * Fetches API list from OpenAPI endpoint on each call for real-time discovery.
+ * Updates the cached supergraphSdl variable.
  *
- * The worker's 'error' and 'exit' events fire on the worker object itself, not
- * inside the Promise executor, so they cannot directly reject the Promise.
- * Storing the reject here lets those handlers abort a pending composition
- * instead of leaving the Promise hanging forever (which would stall startup
- * or silently drop polling cycles).
- *
- * Cleared to null whenever the Promise settles (success, worker error, or exit).
- */
-let pendingReject: ((err: Error) => void) | null = null
-
-/**
- * Resolve the worker script path for the current runtime environment.
- */
-const resolveWorkerPath = (): { url: URL; execArgv: string[] } => {
-  const isDev = new URL(import.meta.url).pathname.endsWith('.ts')
-  return isDev
-    ? { url: new URL('./compose-worker.ts', import.meta.url), execArgv: ['--import', 'tsx'] }
-    : { url: new URL('./compose-worker.js', import.meta.url), execArgv: [] }
-}
-
-/**
- * Spawn the persistent composition worker thread.
- *
- * mTLS config is passed via workerData so the worker can authenticate against
- * the k8s API server without importing from our path-aliased source modules
- */
-const startWorker = (): Worker => {
-  const { url, execArgv } = resolveWorkerPath()
-  const { server, certPath, keyPath, caPath } = getMTLSConfig()
-
-  const worker = new Worker(url, {
-    execArgv,
-    workerData: { server, certPath, keyPath, caPath },
-  })
-
-  worker.on('error', (err) => {
-    log.error(`Composition worker error: ${err}`)
-    isComposing = false
-    // Reject any in-flight composeSupergraph() Promise so the caller
-    // (initializeGateway or the polling setInterval) is notified immediately
-    // rather than waiting forever for a message that will never arrive.
-    pendingReject?.(err)
-    pendingReject = null
-  })
-
-  worker.on('exit', (code) => {
-    if (code !== 0) {
-      const err = new Error(`Composition worker exited unexpectedly with code ${code}`)
-      log.error(err.message)
-      isComposing = false
-      pendingReject?.(err)
-      pendingReject = null
-    }
-  })
-
-  return worker
-}
-
-/**
- * Trigger a supergraph composition cycle in the worker thread.
- *
- * Posts a `{ type: 'compose' }` message to the worker and resolves with the
- * new SDL when the worker responds.  All CPU-intensive work (OpenAPI fetching,
- * schema conversion, composeSubgraphs) runs entirely in the worker thread so
- * the main event loop stays free to serve HTTP requests throughout.
- *
- * If a cycle is already running the function returns the current cached SDL
- * immediately – overlapping cycles are dropped, not queued.
+ * Concurrent calls share the same in-flight promise to avoid redundant work.
  */
 const composeSupergraph = (): Promise<string> => {
-  if (isComposing) {
-    log.info('Supergraph composition already in progress, skipping...')
-    return Promise.resolve(supergraphSdl)
+  if (composeInFlight) {
+    return composeInFlight
   }
+  composeInFlight = _composeSupergraph().finally(() => {
+    composeInFlight = null
+  })
+  return composeInFlight
+}
 
-  isComposing = true
+const _composeSupergraph = async (): Promise<string> => {
   log.info('Composing supergraph from OpenAPI specs...')
 
-  return new Promise((resolve, reject) => {
-    pendingReject = reject
+  // Fetch APIs dynamically from OpenAPI endpoint on each poll
+  const apis = await fetchApisFromOpenAPI()
+  const handlers = getSubgraphs(apis)
+  const subgraphs = await Promise.all(
+    handlers.map(async ({ sourceHandler }) => {
+      const result = sourceHandler({
+        fetch: globalThis.fetch,
+        cwd: process.cwd(),
+        logger: meshLogger,
+      })
+      const schema = await result.schema$
+      return { name: result.name, schema }
+    })
+  )
 
-    const handler = (result: { sdl?: string; error?: string }) => {
-      pendingReject = null
-      isComposing = false
+  const result = composeSubgraphs(subgraphs)
+  supergraphSdl = result.supergraphSdl
+  log.info('Supergraph composed successfully')
 
-      if (result.error) {
-        log.error(`Supergraph composition failed: ${result.error}`)
-        reject(new Error(result.error))
-      } else {
-        supergraphSdl = result.sdl!
-        isReady = true
-        log.info('Supergraph composed successfully')
-        resolve(result.sdl!)
-      }
-    }
-
-    composeWorker!.once('message', handler)
-    composeWorker!.postMessage({ type: 'compose' })
-  })
+  return result.supergraphSdl
 }
 
 /**
- * Returns the cached supergraph SDL synchronously.
- *
- * This is passed directly to `createGatewayRuntime` as the `supergraph`
- * option.  Because it returns a plain string (not a Promise), Hive Gateway
- * treats the schema as already resolved and never awaits anything on the
- * request path.  The cache is updated in the background by the worker thread
- * without ever touching request handling.
+ * Returns the cached supergraph SDL.
+ * Falls back to composing if not ready (safety mechanism).
  */
-const getSupergraph = (): string => {
+const getSupergraph = async (): Promise<string> => {
   if (!supergraphSdl) {
-    log.warn('Supergraph not ready yet – returning empty SDL')
+    log.warn('Supergraph not ready, composing on demand...')
+    return composeSupergraph()
   }
   return supergraphSdl
 }
 
-/** True once the supergraph has been composed at least once successfully */
-export const isSupergraphReady = (): boolean => isReady
-
 /**
- * Start background polling to keep the supergraph SDL fresh.
- *
- * Each tick sends a compose request to the worker thread.  The main event
- * loop is never blocked – the worker does all the heavy lifting and posts
- * the result back asynchronously.
+ * Start background polling to refresh the supergraph SDL.
  */
 const startPolling = (): void => {
   setInterval(async () => {
@@ -164,15 +165,10 @@ const startPolling = (): void => {
 }
 
 /**
- * Bootstrap the gateway: spawn the composition worker, run the first
- * composition eagerly (blocking startup until the SDL is ready), then kick
- * off background polling.
- *
- * Must complete before the HTTP server begins accepting connections so that
- * `getSupergraph()` always returns a valid SDL on the very first request.
+ * Initialize the gateway: compose supergraph eagerly, then start background polling.
+ * Must be called before handling requests.
  */
 export const initializeGateway = async (): Promise<void> => {
-  composeWorker = startWorker()
   await composeSupergraph()
   startPolling()
   log.info(`Background polling started (interval: ${env.pollingInterval}ms)`)

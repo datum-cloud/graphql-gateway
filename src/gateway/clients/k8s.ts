@@ -100,12 +100,16 @@ export function createMTLSFetch(mtlsConfig: K8sMTLSConfig): typeof fetch {
   const key = readFileSync(mtlsConfig.keyPath, 'utf8')
   const ca = readFileSync(mtlsConfig.caPath, 'utf8')
 
-  // Create HTTPS agent with mTLS
+  // Create HTTPS agent with mTLS and connection keep-alive to avoid
+  // a full TCP + mTLS handshake on every request.
   const agent = new https.Agent({
     cert,
     key,
     ca,
     rejectUnauthorized: true,
+    keepAlive: true,
+    keepAliveMsecs: 60_000,
+    maxSockets: 50,
   })
 
   log.info('mTLS fetch created successfully')
@@ -115,13 +119,21 @@ export function createMTLSFetch(mtlsConfig: K8sMTLSConfig): typeof fetch {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
     const parsedUrl = new URL(url)
 
+    // Normalise headers to a plain object so https.request can read them
+    // regardless of whether the caller passed a Headers instance or a plain object.
+    const rawHeaders = init?.headers
+    const headers: Record<string, string> =
+      rawHeaders instanceof Headers
+        ? Object.fromEntries(rawHeaders.entries())
+        : (rawHeaders as Record<string, string>) ?? {}
+
     return new Promise((resolve, reject) => {
       const options: https.RequestOptions = {
         hostname: parsedUrl.hostname,
         port: parsedUrl.port || 443,
         path: parsedUrl.pathname + parsedUrl.search,
         method: init?.method || 'GET',
-        headers: init?.headers as Record<string, string>,
+        headers,
         agent,
       }
 
@@ -146,6 +158,13 @@ export function createMTLSFetch(mtlsConfig: K8sMTLSConfig): typeof fetch {
       req.on('error', (error) => {
         log.error('mTLS request failed', { url, error: error.message })
         reject(error)
+      })
+
+      // Propagate abort signal so upstream requests are cancelled when the
+      // client disconnects — frees mTLS agent sockets without waiting for milo.
+      init?.signal?.addEventListener('abort', () => {
+        req.destroy()
+        reject(new DOMException('The operation was aborted.', 'AbortError'))
       })
 
       // Write body if present
