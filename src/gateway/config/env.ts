@@ -37,4 +37,13 @@ export const env = {
 
   /** Directory containing TLS certificates for HTTPS (tls.crt and tls.key) */
   certDir: process.env.CERT_DIR || '',
+
+  /** Sentry DSN for error and performance monitoring */
+  sentryDsn: process.env.SENTRY_DSN || '',
+
+  /** Sentry environment name */
+  sentryEnv: process.env.SENTRY_ENV || process.env.NODE_ENV || 'development',
+
+  /** Service version for Sentry release tracking */
+  version: process.env.VERSION || '1.0.0',
 }

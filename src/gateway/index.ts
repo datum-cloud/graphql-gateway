@@ -1,6 +1,10 @@
 // Telemetry must be initialized before any other imports
 import './telemetry/telemetry'
 
+// Sentry must be initialized after OTEL (skipOpenTelemetrySetup hooks into it)
+import { initSentry } from './telemetry/sentry'
+initSentry()
+
 import { createGatewayServer } from './server'
 import { env, scopedEndpoints } from './config'
 import { initAuth, getK8sServer } from './auth'
