@@ -45,5 +45,5 @@ export const env = {
   sentryEnv: process.env.SENTRY_ENV || process.env.NODE_ENV || 'development',
 
   /** Service version for Sentry release tracking */
-  version: process.env.VERSION || '1.0.0',
+  version: process.env.VERSION || 'dev',
 }

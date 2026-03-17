@@ -19,10 +19,13 @@ RUN npm run build
 # --- Stage 2: Runtime ---
 FROM node:22-slim
 
+ARG VERSION=dev
+
 WORKDIR /app
 
 # Set the environment to production
 ENV NODE_ENV=production
+ENV VERSION=${VERSION}
 
 # Copy package files
 COPY package.json package-lock.json ./
