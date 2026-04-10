@@ -1,0 +1,41 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: graphql-gateway-alerts
+spec:
+  groups:
+    - name: graphql-gateway
+      rules:
+        - alert: GraphQLGatewaySubgraphErrors
+          expr: |
+            increase(graphql_gateway_subgraph_execute_errors[5m]) > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: >-
+              GraphQL gateway subgraph {{ $labels.subgraphName }} has
+              errors ({{ $value | humanize }} in 5m)
+            description: >-
+              The graphql-gateway pod {{ $labels.pod }} is failing to
+              execute requests against subgraph {{ $labels.subgraphName }}.
+              This typically indicates a TLS certificate issue or the
+              downstream API server being unreachable.
+            runbook_url: "https://github.com/datum-cloud/graphql-gateway/blob/main/docs/runbooks/subgraph-errors.md"
+        - alert: GraphQLGatewaySubgraphErrorsSustained
+          expr: |
+            increase(graphql_gateway_subgraph_execute_errors[15m]) > 5
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: >-
+              GraphQL gateway subgraph {{ $labels.subgraphName }} has
+              sustained errors ({{ $value | humanize }} in 15m)
+            description: >-
+              The graphql-gateway pod {{ $labels.pod }} has been failing
+              requests against subgraph {{ $labels.subgraphName }} for
+              over 10 minutes. Users are likely unable to load
+              organization memberships or other data served by this
+              subgraph.
+            runbook_url: "https://github.com/datum-cloud/graphql-gateway/blob/main/docs/runbooks/subgraph-errors.md"
