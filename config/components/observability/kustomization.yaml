@@ -7,3 +7,6 @@ resources:
 
   # Grafana dashboards
   - dashboards/
+
+  # Alerting rules
+  - alerts/subgraph-errors.yaml
