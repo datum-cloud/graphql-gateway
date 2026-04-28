@@ -1,21 +1,27 @@
+import { GraphQLError } from 'graphql'
 import { parseUserAgent } from '@/gateway/services/user-agent'
 import { lookupIp } from '@/gateway/services/geolocation'
 import { getK8sServer } from '@/gateway/auth'
 import { log } from '@/shared/utils'
-import GraphQLJSON from './json-scalar'
 
 interface ResolverContext {
   headers: Record<string, string>
 }
 
 interface UpstreamSession {
-  metadata?: { name?: string }
-  status?: {
-    ip?: string
-    userAgent?: string
-    [key: string]: unknown
+  metadata?: {
+    name?: string
+    creationTimestamp?: string
   }
-  [key: string]: unknown
+  status?: {
+    userUID?: string
+    provider?: string
+    ip?: string
+    fingerprintID?: string
+    createdAt?: string
+    lastUpdatedAt?: string
+    userAgent?: string
+  }
 }
 
 interface UpstreamSessionList {
@@ -23,22 +29,32 @@ interface UpstreamSessionList {
 }
 
 function enrichSession(session: UpstreamSession) {
+  const status = session.status ?? {}
   const id = session.metadata?.name ?? 'unknown'
-  const ipAddress = session.status?.ip ?? null
-  const rawUserAgent = session.status?.userAgent ?? null
+  const ipAddress = status.ip ?? null
+  const rawUserAgent = status.userAgent ?? null
 
   return {
     id,
+    userUID: status.userUID ?? '',
+    provider: status.provider ?? '',
     ipAddress,
+    fingerprintID: status.fingerprintID ?? null,
+    createdAt: status.createdAt ?? session.metadata?.creationTimestamp ?? '',
+    lastUpdatedAt: status.lastUpdatedAt ?? null,
     userAgent: rawUserAgent ? parseUserAgent(rawUserAgent) : null,
     location: ipAddress ? lookupIp(ipAddress) : null,
-    raw: session,
   }
 }
 
-export const additionalResolvers = {
-  JSON: GraphQLJSON,
+function sessionsURL(context: ResolverContext, name?: string) {
+  const server = getK8sServer()
+  const endpointPrefix = context.headers['x-resource-endpoint-prefix'] || ''
+  const base = `${server}${endpointPrefix}/apis/identity.miloapis.com/v1alpha1/sessions`
+  return name ? `${base}/${encodeURIComponent(name)}` : base
+}
 
+export const additionalResolvers = {
   Query: {
     parseUserAgent: (_root: unknown, args: { userAgent: string }) => {
       return parseUserAgent(args.userAgent)
@@ -50,15 +66,9 @@ export const additionalResolvers = {
 
     sessions: async (_root: unknown, _args: unknown, context: ResolverContext) => {
       try {
-        const server = getK8sServer()
-        const endpointPrefix = context.headers['x-resource-endpoint-prefix'] || ''
-        const authorization = context.headers['authorization'] || ''
-
-        const url = `${server}${endpointPrefix}/apis/identity.miloapis.com/v1alpha1/sessions`
-
-        const response = await fetch(url, {
+        const response = await fetch(sessionsURL(context), {
           headers: {
-            Authorization: authorization,
+            Authorization: context.headers['authorization'] || '',
             Accept: 'application/json',
           },
         })
@@ -76,6 +86,34 @@ export const additionalResolvers = {
         })
         return []
       }
+    },
+  },
+
+  Mutation: {
+    deleteSession: async (
+      _root: unknown,
+      args: { id: string },
+      context: ResolverContext
+    ) => {
+      const response = await fetch(sessionsURL(context, args.id), {
+        method: 'DELETE',
+        headers: {
+          Authorization: context.headers['authorization'] || '',
+          Accept: 'application/json',
+        },
+      })
+
+      // 200/202/204 are success; 404 means the session is already gone, which
+      // we treat as success so the mutation is idempotent for retries.
+      if (response.ok || response.status === 404) {
+        return true
+      }
+
+      const detail = await response.text().catch(() => '')
+      log.warn('milo deleteSession failed', { status: response.status, detail })
+      throw new GraphQLError(`Failed to delete session: ${response.status}`, {
+        extensions: { code: 'SESSION_DELETE_FAILED', status: response.status },
+      })
     },
   },
 }

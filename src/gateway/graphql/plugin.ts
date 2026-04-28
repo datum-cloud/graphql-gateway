@@ -15,34 +15,42 @@ import { additionalTypeDefs } from './typeDefs'
 import { additionalResolvers } from './resolvers'
 
 /**
- * Top-level Query field names that are resolved locally by the gateway and
- * should NOT be planned by the Hive Router.  Derived from the resolver map so
- * the two stay in sync.
+ * Top-level Query / Mutation field names that are resolved locally by the
+ * gateway and should NOT be planned by the Hive Router.  Derived from the
+ * resolver map so the two stay in sync.
  */
-const LOCAL_QUERY_FIELDS: ReadonlySet<string> = new Set(
-  Object.keys((additionalResolvers as { Query?: Record<string, unknown> }).Query ?? {})
-)
+const resolverMap = additionalResolvers as {
+  Query?: Record<string, unknown>
+  Mutation?: Record<string, unknown>
+}
+const LOCAL_FIELDS: Readonly<Record<'query' | 'mutation', ReadonlySet<string>>> = {
+  query: new Set(Object.keys(resolverMap.Query ?? {})),
+  mutation: new Set(Object.keys(resolverMap.Mutation ?? {})),
+}
 
 /**
  * Returns true when every top-level selection on the operation is a local
- * gateway field.  Queries that mix local + federated fields fall back to the
- * router (which will fail – we don't currently support mixed operations).
+ * gateway field.  Operations that mix local + federated fields fall back to
+ * the router (which will fail – we don't currently support mixed operations).
  */
 const isPurelyLocalOperation = (doc: DocumentNode, opName?: string | null): boolean => {
   const op = doc.definitions.find(
     (d): d is OperationDefinitionNode =>
       d.kind === Kind.OPERATION_DEFINITION &&
-      d.operation === 'query' &&
+      (d.operation === 'query' || d.operation === 'mutation') &&
       (!opName || d.name?.value === opName)
   )
   if (!op) return false
+
+  const localFields = LOCAL_FIELDS[op.operation as 'query' | 'mutation']
+  if (!localFields || localFields.size === 0) return false
 
   const topLevelFields = op.selectionSet.selections.filter(
     (s): s is FieldNode => s.kind === Kind.FIELD
   )
   if (topLevelFields.length === 0) return false
 
-  return topLevelFields.every((f) => LOCAL_QUERY_FIELDS.has(f.name.value))
+  return topLevelFields.every((f) => localFields.has(f.name.value))
 }
 
 /**

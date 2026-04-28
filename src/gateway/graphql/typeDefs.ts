@@ -1,6 +1,4 @@
 export const additionalTypeDefs = /* GraphQL */ `
-  scalar JSON
-
   type ParsedUserAgent {
     browser: String
     os: String
@@ -16,15 +14,23 @@ export const additionalTypeDefs = /* GraphQL */ `
 
   type ExtendedSession {
     id: String!
+    userUID: String!
+    provider: String!
     ipAddress: String
+    fingerprintID: String
+    createdAt: String!
+    lastUpdatedAt: String
     userAgent: ParsedUserAgent
     location: GeoLocation
-    raw: JSON
   }
 
   extend type Query {
     parseUserAgent(userAgent: String!): ParsedUserAgent!
     geolocateIP(ip: String!): GeoLocation
     sessions: [ExtendedSession!]!
+  }
+
+  extend type Mutation {
+    deleteSession(id: String!): Boolean!
   }
 `
