@@ -7,6 +7,11 @@ export type ParsedUserAgent = {
 }
 
 export function parseUserAgent(userAgent: string): ParsedUserAgent {
+  // Bowser throws on empty input; treat that as "no information" rather than
+  // bubbling the error up through resolvers.
+  if (!userAgent) {
+    return { browser: null, os: null, formatted: 'Unknown' }
+  }
   const parser = Bowser.getParser(userAgent)
   const browser = parser.getBrowser().name ?? null
   const os = parser.getOS().name ?? null

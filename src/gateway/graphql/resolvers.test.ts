@@ -1,0 +1,241 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { GraphQLError } from 'graphql'
+
+vi.mock('@/gateway/auth', () => ({
+  getK8sServer: () => 'https://k8s.test',
+}))
+
+vi.mock('@/gateway/services/geolocation', () => ({
+  lookupIp: vi.fn((ip: string) => ({
+    city: 'Mountain View',
+    country: 'United States',
+    countryCode: 'US',
+    formatted: `${ip}@Mountain View, United States`,
+  })),
+}))
+
+vi.mock('@/gateway/services/user-agent', () => ({
+  parseUserAgent: vi.fn((ua: string) => ({
+    browser: 'TestBrowser',
+    os: 'TestOS',
+    formatted: `parsed:${ua}`,
+  })),
+}))
+
+vi.mock('@/shared/utils', () => ({
+  log: { warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() },
+}))
+
+import { additionalResolvers } from './resolvers'
+
+type Resolvers = typeof additionalResolvers
+type SessionsResolver = NonNullable<Resolvers['Query']>['sessions']
+type DeleteResolver = NonNullable<Resolvers['Mutation']>['deleteSession']
+
+const ctx = (overrides: Record<string, string> = {}) => ({
+  headers: { authorization: 'Bearer test', ...overrides },
+})
+
+const jsonResponse = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  })
+
+const callSessions = (context: ReturnType<typeof ctx> = ctx()) =>
+  (additionalResolvers.Query!.sessions as SessionsResolver)(null, null, context)
+
+const callDeleteSession = (
+  args: { id: string },
+  context: ReturnType<typeof ctx> = ctx()
+) => (additionalResolvers.Mutation!.deleteSession as DeleteResolver)(null, args, context)
+
+describe('Query.sessions', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('calls milo at the expected URL forwarding the Authorization header', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    await callSessions()
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(url).toBe(
+      'https://k8s.test/apis/identity.miloapis.com/v1alpha1/sessions'
+    )
+    expect((init as RequestInit).headers).toMatchObject({
+      Authorization: 'Bearer test',
+      Accept: 'application/json',
+    })
+  })
+
+  it('honours x-resource-endpoint-prefix when present', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    await callSessions(ctx({ 'x-resource-endpoint-prefix': '/projects/p1' }))
+
+    const [url] = fetchSpy.mock.calls[0]
+    expect(url).toBe(
+      'https://k8s.test/projects/p1/apis/identity.miloapis.com/v1alpha1/sessions'
+    )
+  })
+
+  it('enriches each session with parsed user-agent and resolved location', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            metadata: { name: 'sess-1' },
+            status: {
+              userUID: 'user-42',
+              provider: 'zitadel',
+              ip: '8.8.8.8',
+              fingerprintID: 'fp-1',
+              createdAt: '2026-04-28T10:00:00Z',
+              lastUpdatedAt: '2026-04-28T11:00:00Z',
+              userAgent: 'Mozilla/5.0',
+            },
+          },
+        ],
+      })
+    )
+
+    const result = await callSessions()
+    expect(result).toHaveLength(1)
+    expect(result[0]).toMatchObject({
+      id: 'sess-1',
+      userUID: 'user-42',
+      provider: 'zitadel',
+      ipAddress: '8.8.8.8',
+      fingerprintID: 'fp-1',
+      createdAt: '2026-04-28T10:00:00Z',
+      lastUpdatedAt: '2026-04-28T11:00:00Z',
+      userAgent: { browser: 'TestBrowser', os: 'TestOS', formatted: 'parsed:Mozilla/5.0' },
+      location: expect.objectContaining({ city: 'Mountain View', countryCode: 'US' }),
+    })
+  })
+
+  it('skips enrichment when ip and userAgent are absent', async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse({
+        items: [
+          {
+            metadata: { name: 'sess-2' },
+            status: { userUID: 'u', provider: 'zitadel', createdAt: 'now' },
+          },
+        ],
+      })
+    )
+
+    const [session] = await callSessions()
+    expect(session.userAgent).toBeNull()
+    expect(session.location).toBeNull()
+    expect(session.ipAddress).toBeNull()
+    expect(session.fingerprintID).toBeNull()
+  })
+
+  it('returns an empty list on non-2xx responses', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('boom', { status: 500 }))
+    expect(await callSessions()).toEqual([])
+  })
+
+  it('returns an empty list when fetch throws', async () => {
+    fetchSpy.mockRejectedValueOnce(new Error('network down'))
+    expect(await callSessions()).toEqual([])
+  })
+
+  it('returns an empty list when items is missing from the upstream payload', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({}))
+    expect(await callSessions()).toEqual([])
+  })
+})
+
+describe('Mutation.deleteSession', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>
+
+  beforeEach(() => {
+    fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.clearAllMocks()
+  })
+
+  it('issues a DELETE to the per-session URL with Authorization', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }))
+    await callDeleteSession({ id: 'sess-1' })
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(url).toBe(
+      'https://k8s.test/apis/identity.miloapis.com/v1alpha1/sessions/sess-1'
+    )
+    expect((init as RequestInit).method).toBe('DELETE')
+    expect((init as RequestInit).headers).toMatchObject({
+      Authorization: 'Bearer test',
+    })
+  })
+
+  it('URL-encodes the id in the path', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }))
+    await callDeleteSession({ id: 'a b/c' })
+
+    const [url] = fetchSpy.mock.calls[0]
+    expect(url).toBe(
+      'https://k8s.test/apis/identity.miloapis.com/v1alpha1/sessions/a%20b%2Fc'
+    )
+  })
+
+  it('returns true on a 200 response', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 200 }))
+    expect(await callDeleteSession({ id: 'sess' })).toBe(true)
+  })
+
+  it('returns true on a 404 response (idempotent)', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('not found', { status: 404 }))
+    expect(await callDeleteSession({ id: 'sess' })).toBe(true)
+  })
+
+  it('throws GraphQLError on non-2xx, non-404 responses', async () => {
+    fetchSpy.mockResolvedValueOnce(new Response('boom', { status: 500 }))
+    const promise = callDeleteSession({ id: 'sess' })
+    await expect(promise).rejects.toBeInstanceOf(GraphQLError)
+    await expect(promise).rejects.toMatchObject({
+      message: expect.stringContaining('500'),
+      extensions: expect.objectContaining({
+        code: 'SESSION_DELETE_FAILED',
+        status: 500,
+      }),
+    })
+  })
+})
+
+describe('Query.parseUserAgent and Query.geolocateIP', () => {
+  it('parseUserAgent delegates to the user-agent service', () => {
+    const result = additionalResolvers.Query!.parseUserAgent(null, {
+      userAgent: 'fake',
+    })
+    expect(result).toEqual({
+      browser: 'TestBrowser',
+      os: 'TestOS',
+      formatted: 'parsed:fake',
+    })
+  })
+
+  it('geolocateIP delegates to the geolocation service', () => {
+    const result = additionalResolvers.Query!.geolocateIP(null, { ip: '1.1.1.1' })
+    expect(result).toMatchObject({
+      city: 'Mountain View',
+      countryCode: 'US',
+    })
+  })
+})
