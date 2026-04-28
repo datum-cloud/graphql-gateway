@@ -6,7 +6,7 @@ import { env } from '@/gateway/config'
 import { getMTLSConfig } from '@/gateway/auth'
 import { log } from '@/shared/utils'
 import { usePrometheusMetrics } from '@/gateway/metrics/metrics'
-import { additionalTypeDefs, additionalResolvers } from '@/gateway/graphql'
+import { useGatewayLocalSchema } from '@/gateway/graphql'
 
 /** Cached supergraph SDL - updated by the worker after each composition cycle */
 let supergraphSdl: string = ''
@@ -43,7 +43,7 @@ let pendingReject: ((err: Error) => void) | null = null
 const resolveWorkerPath = (): { url: URL; execArgv: string[] } => {
   const isDev = new URL(import.meta.url).pathname.endsWith('.ts')
   return isDev
-    ? { url: new URL('./compose-worker.ts', import.meta.url), execArgv: ['--import', 'tsx'] }
+    ? { url: new URL('./compose-worker-bootstrap.mjs', import.meta.url), execArgv: [] }
     : { url: new URL('./compose-worker.js', import.meta.url), execArgv: [] }
 }
 
@@ -187,12 +187,14 @@ export const gateway = createGatewayRuntime({
   supergraph: getSupergraph,
   logging: env.logLevel,
   unifiedGraphHandler,
-  additionalTypeDefs,
-  additionalResolvers,
   plugins: (ctx) => [
     // Uses the SDK configured in telemetry/telemetry.ts via openTelemetrySetup
     useOpenTelemetry({}),
     // Uses the SDK configured in metrics/metrics.ts via usePrometheusMetrics
     usePrometheusMetrics(ctx),
+    // Adds gateway-local fields (parseUserAgent, geolocateIP) to the schema.
+    // Required because @graphql-hive/router-runtime ignores additionalTypeDefs
+    // / additionalResolvers — see ./plugin.ts.
+    useGatewayLocalSchema(),
   ],
 })

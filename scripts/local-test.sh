@@ -53,6 +53,7 @@ fi
 
 LOCAL_DIR="/tmp/graphql-gateway-test"
 NAMESPACE="${NAMESPACE:-datum-system}"
+TRUST_BUNDLE_NAMESPACE="${TRUST_BUNDLE_NAMESPACE:-graphql-gateway}"
 CERT_NAMESPACE="${CERT_NAMESPACE:-default}"
 CERT_NAME="graphql-gateway-local-test"
 APISERVER_HOST="milo-apiserver"
@@ -150,18 +151,18 @@ setup_directories() {
 }
 
 extract_ca_cert() {
-  log_info "Extracting CA certificate from cluster..."
-  
+  log_info "Extracting CA certificate from cluster (namespace: $TRUST_BUNDLE_NAMESPACE)..."
+
   # Try different ConfigMap names
   for cm_name in "datum-control-plane-trust-bundle" "trust-bundle" "datum-control-plane-system-bundle"; do
-    if kubectl get configmap "$cm_name" -n "$NAMESPACE" &>/dev/null; then
-      kubectl get configmap "$cm_name" -n "$NAMESPACE" -o jsonpath='{.data.ca\.crt}' > "$LOCAL_DIR/pki/trust/ca.crt"
+    if kubectl get configmap "$cm_name" -n "$TRUST_BUNDLE_NAMESPACE" &>/dev/null; then
+      kubectl get configmap "$cm_name" -n "$TRUST_BUNDLE_NAMESPACE" -o jsonpath='{.data.ca\.crt}' > "$LOCAL_DIR/pki/trust/ca.crt"
       log_info "CA certificate extracted from ConfigMap: $cm_name"
       return 0
     fi
   done
-  
-  log_error "Could not find CA certificate ConfigMap. Please manually copy CA to: $LOCAL_DIR/pki/trust/ca.crt"
+
+  log_error "Could not find CA certificate ConfigMap in $TRUST_BUNDLE_NAMESPACE. Please manually copy CA to: $LOCAL_DIR/pki/trust/ca.crt"
   return 1
 }
 
