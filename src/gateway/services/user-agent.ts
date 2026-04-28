@@ -1,4 +1,4 @@
-import { UAParser } from 'ua-parser-js'
+import Bowser from 'bowser'
 
 export type ParsedUserAgent = {
   browser: string | null
@@ -6,16 +6,10 @@ export type ParsedUserAgent = {
   formatted: string
 }
 
-const OS_DISPLAY_NAMES: Record<string, string> = {
-  'Mac OS': 'macOS',
-  'Chrome OS': 'ChromeOS',
-}
-
 export function parseUserAgent(userAgent: string): ParsedUserAgent {
-  const result = UAParser(userAgent)
-  const browser = result.browser.name ?? null
-  const rawOs = result.os.name ?? null
-  const os = rawOs ? (OS_DISPLAY_NAMES[rawOs] ?? rawOs) : null
+  const parser = Bowser.getParser(userAgent)
+  const browser = parser.getBrowser().name ?? null
+  const os = parser.getOS().name ?? null
 
   let formatted = 'Unknown'
   if (browser && os) {
