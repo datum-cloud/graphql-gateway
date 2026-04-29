@@ -4,8 +4,24 @@ import { lookupIp } from '@/gateway/services/geolocation'
 import { getK8sServer } from '@/gateway/auth'
 import { log } from '@/shared/utils'
 
+/**
+ * Hive Gateway runs on graphql-yoga, which exposes incoming request headers
+ * via `context.request.headers` (a Web Headers instance). The federated
+ * mesh-mapping resolvers in compose-worker.ts read headers via the
+ * `context.headers[name]` flat-object shape provided by graphql-mesh's
+ * runtime. Hand-written local resolvers see only the yoga shape, so we
+ * support both and fall back to the empty string when neither is present.
+ */
 interface ResolverContext {
-  headers: Record<string, string>
+  request?: { headers?: Headers }
+  headers?: Record<string, string | undefined>
+}
+
+function getHeader(context: ResolverContext, name: string): string {
+  const yogaValue = context.request?.headers?.get?.(name)
+  if (yogaValue) return yogaValue
+  const meshValue = context.headers?.[name] ?? context.headers?.[name.toLowerCase()]
+  return meshValue ?? ''
 }
 
 interface UpstreamSession {
@@ -49,7 +65,7 @@ function enrichSession(session: UpstreamSession) {
 
 function sessionsURL(context: ResolverContext, name?: string) {
   const server = getK8sServer()
-  const endpointPrefix = context.headers['x-resource-endpoint-prefix'] || ''
+  const endpointPrefix = getHeader(context, 'x-resource-endpoint-prefix')
   const base = `${server}${endpointPrefix}/apis/identity.miloapis.com/v1alpha1/sessions`
   return name ? `${base}/${encodeURIComponent(name)}` : base
 }
@@ -66,15 +82,22 @@ export const additionalResolvers = {
 
     sessions: async (_root: unknown, _args: unknown, context: ResolverContext) => {
       try {
-        const response = await fetch(sessionsURL(context), {
+        const url = sessionsURL(context)
+        const authorization = getHeader(context, 'authorization')
+
+        const response = await fetch(url, {
           headers: {
-            Authorization: context.headers['authorization'] || '',
+            ...(authorization ? { Authorization: authorization } : {}),
             Accept: 'application/json',
           },
         })
 
         if (!response.ok) {
-          log.warn('milo sessions fetch failed', { status: response.status })
+          log.warn('milo sessions fetch failed', {
+            status: response.status,
+            url,
+            hasAuthorization: !!authorization,
+          })
           return []
         }
 
@@ -95,10 +118,13 @@ export const additionalResolvers = {
       args: { id: string },
       context: ResolverContext
     ) => {
-      const response = await fetch(sessionsURL(context, args.id), {
+      const url = sessionsURL(context, args.id)
+      const authorization = getHeader(context, 'authorization')
+
+      const response = await fetch(url, {
         method: 'DELETE',
         headers: {
-          Authorization: context.headers['authorization'] || '',
+          ...(authorization ? { Authorization: authorization } : {}),
           Accept: 'application/json',
         },
       })
@@ -110,7 +136,12 @@ export const additionalResolvers = {
       }
 
       const detail = await response.text().catch(() => '')
-      log.warn('milo deleteSession failed', { status: response.status, detail })
+      log.warn('milo deleteSession failed', {
+        status: response.status,
+        url,
+        detail,
+        hasAuthorization: !!authorization,
+      })
       throw new GraphQLError(`Failed to delete session: ${response.status}`, {
         extensions: { code: 'SESSION_DELETE_FAILED', status: response.status },
       })

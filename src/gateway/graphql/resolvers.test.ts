@@ -36,6 +36,13 @@ const ctx = (overrides: Record<string, string> = {}) => ({
   headers: { authorization: 'Bearer test', ...overrides },
 })
 
+// Mirrors what graphql-yoga puts on context for incoming HTTP requests.
+const yogaCtx = (overrides: Record<string, string> = {}) => ({
+  request: {
+    headers: new Headers({ authorization: 'Bearer test', ...overrides }),
+  },
+})
+
 const jsonResponse = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -76,6 +83,37 @@ describe('Query.sessions', () => {
       Authorization: 'Bearer test',
       Accept: 'application/json',
     })
+  })
+
+  it('reads headers from the yoga-style context.request.headers shape', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    await (additionalResolvers.Query!.sessions as SessionsResolver)(
+      null,
+      null,
+      yogaCtx({ 'x-resource-endpoint-prefix': '/apis/iam.miloapis.com/v1alpha1/users/u1/control-plane' }) as Parameters<SessionsResolver>[2]
+    )
+
+    const [url, init] = fetchSpy.mock.calls[0]
+    expect(url).toBe(
+      'https://k8s.test/apis/iam.miloapis.com/v1alpha1/users/u1/control-plane/apis/identity.miloapis.com/v1alpha1/sessions'
+    )
+    expect((init as RequestInit).headers).toMatchObject({
+      Authorization: 'Bearer test',
+    })
+  })
+
+  it('omits the Authorization header entirely when no token is on the context', async () => {
+    fetchSpy.mockResolvedValueOnce(jsonResponse({ items: [] }))
+    await (additionalResolvers.Query!.sessions as SessionsResolver)(
+      null,
+      null,
+      { headers: {} } as Parameters<SessionsResolver>[2]
+    )
+
+    const [, init] = fetchSpy.mock.calls[0]
+    const sent = (init as RequestInit).headers as Record<string, string>
+    expect(sent.Authorization).toBeUndefined()
+    expect(sent.Accept).toBe('application/json')
   })
 
   it('honours x-resource-endpoint-prefix when present', async () => {
