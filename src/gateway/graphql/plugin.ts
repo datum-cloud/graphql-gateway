@@ -29,11 +29,27 @@ const LOCAL_FIELDS: Readonly<Record<'query' | 'mutation', ReadonlySet<string>>> 
 }
 
 /**
- * Returns true when every top-level selection on the operation is a local
- * gateway field.  Operations that mix local + federated fields fall back to
- * the router (which will fail – we don't currently support mixed operations).
+ * Top-level introspection fields. When every top-level selection on an
+ * operation is one of these (or a local field — `isLocallyExecutable`
+ * accepts a mix), we run the whole operation through the default GraphQL
+ * executor against the schema-with-local-extensions, so introspection
+ * clients see both federated and gateway-local types.
  */
-const isPurelyLocalOperation = (doc: DocumentNode, opName?: string | null): boolean => {
+const INTROSPECTION_FIELDS: ReadonlySet<string> = new Set([
+  '__schema',
+  '__type',
+  '__typename',
+])
+
+/**
+ * Returns true when every top-level selection on the operation can be
+ * served by the default GraphQL executor against the local-extended
+ * schema — i.e. each top-level field is either a local resolver or an
+ * introspection meta-field. Operations that mix local + federated fields
+ * fall back to the router (which will fail — we don't currently support
+ * mixed operations).
+ */
+export const isLocallyExecutable = (doc: DocumentNode, opName?: string | null): boolean => {
   const op = doc.definitions.find(
     (d): d is OperationDefinitionNode =>
       d.kind === Kind.OPERATION_DEFINITION &&
@@ -43,33 +59,40 @@ const isPurelyLocalOperation = (doc: DocumentNode, opName?: string | null): bool
   if (!op) return false
 
   const localFields = LOCAL_FIELDS[op.operation as 'query' | 'mutation']
-  if (!localFields || localFields.size === 0) return false
 
   const topLevelFields = op.selectionSet.selections.filter(
     (s): s is FieldNode => s.kind === Kind.FIELD
   )
   if (topLevelFields.length === 0) return false
 
-  return topLevelFields.every((f) => localFields.has(f.name.value))
+  return topLevelFields.every(
+    (f) => INTROSPECTION_FIELDS.has(f.name.value) || (localFields?.has(f.name.value) ?? false)
+  )
 }
 
 /**
- * Adds gateway-local fields (e.g. parseUserAgent, geolocateIP) to the unified
- * graph schema produced by the Hive Router and routes their execution to the
- * default GraphQL executor.
+ * Adds gateway-local fields (e.g. parseUserAgent, geolocateIP, sessions,
+ * deleteSession) to the unified graph schema produced by the Hive Router
+ * and routes both their execution and any introspection of them through
+ * the default GraphQL executor.
  *
  * Two phases:
  *
  * 1. `onSchemaChange` – extends the router's schema with our type defs +
- *    resolvers so that validation succeeds for local fields.  The Hive Router
+ *    resolvers so that validation succeeds for local fields and so that
+ *    introspection (when run against this extended schema) returns the
+ *    union of federated + local types. The Hive Router
  *    (`@graphql-hive/router-runtime`'s `unifiedGraphHandler`) ignores
  *    `additionalTypeDefs` / `additionalResolvers` on `createGatewayRuntime`
  *    config, so we have to do it ourselves here.
  *
- * 2. `onExecute` – for operations that only select local fields, swap the
- *    executor for the default `graphql.execute`.  Otherwise the router would
- *    try to plan the operation against the supergraph SDL (which knows nothing
- *    about local fields) and fail with "Field 'X' not found in type 'Query'".
+ * 2. `onExecute` – for operations whose top-level fields are all local
+ *    resolvers, all introspection meta-fields, or a mix of the two,
+ *    swap the executor for the default `graphql.execute`. Otherwise the
+ *    router would try to plan the operation against the supergraph SDL
+ *    (which knows nothing about local fields) and either fail with
+ *    "Field 'X' not found in type 'Query'" for local execution or return
+ *    an SDL-only introspection result that hides the local schema.
  */
 export const useGatewayLocalSchema = (): Plugin => {
   const ast = parse(additionalTypeDefs)
@@ -93,7 +116,7 @@ export const useGatewayLocalSchema = (): Plugin => {
     },
 
     onExecute({ args, setExecuteFn }) {
-      if (isPurelyLocalOperation(args.document, args.operationName)) {
+      if (isLocallyExecutable(args.document, args.operationName)) {
         setExecuteFn(defaultExecute)
       }
     },
