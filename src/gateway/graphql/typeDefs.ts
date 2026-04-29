@@ -12,8 +12,25 @@ export const additionalTypeDefs = /* GraphQL */ `
     formatted: String!
   }
 
+  type ExtendedSession {
+    id: String!
+    userUID: String!
+    provider: String!
+    ipAddress: String
+    fingerprintID: String
+    createdAt: String!
+    lastUpdatedAt: String
+    userAgent: ParsedUserAgent
+    location: GeoLocation
+  }
+
   extend type Query {
     parseUserAgent(userAgent: String!): ParsedUserAgent!
     geolocateIP(ip: String!): GeoLocation
+    sessions: [ExtendedSession!]!
+  }
+
+  extend type Mutation {
+    deleteSession(id: String!): Boolean!
   }
 `
