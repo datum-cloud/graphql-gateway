@@ -2,6 +2,7 @@ import { GraphQLError } from 'graphql'
 import { parseUserAgent } from '@/gateway/services/user-agent'
 import { lookupIp } from '@/gateway/services/geolocation'
 import { getK8sServer, getOriginalFetch } from '@/gateway/auth'
+import { env } from '@/gateway/config'
 import { log } from '@/shared/utils'
 
 /**
@@ -64,7 +65,12 @@ function enrichSession(session: UpstreamSession) {
 }
 
 function sessionsURL(context: ResolverContext, name?: string) {
-  const server = getK8sServer()
+  // Prefer the public ingress URL when configured. The user-scoped
+  // /control-plane paths only authorize correctly through that ingress;
+  // the raw in-cluster apiserver 403s on cluster-scoped sessions.delete
+  // even with a valid bearer token. Fallback to the kubeconfig server so
+  // dev environments without the env var still work.
+  const server = env.datumApiUrl || getK8sServer()
   const endpointPrefix = getHeader(context, 'x-resource-endpoint-prefix')
   const base = `${server}${endpointPrefix}/apis/identity.miloapis.com/v1alpha1/sessions`
   return name ? `${base}/${encodeURIComponent(name)}` : base

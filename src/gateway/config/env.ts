@@ -49,4 +49,20 @@ export const env = {
 
   /** Path to the MaxMind GeoLite2-City.mmdb database file */
   maxmindDbPath: process.env.MAXMIND_DB_PATH || '',
+
+  /**
+   * Public-facing milo API URL (e.g. https://api.staging.env.datum.net).
+   *
+   * The gateway's mTLS upstream (DATUM_BASE_URL / kubeconfig server) is the
+   * raw in-cluster apiserver. Some milo paths — notably the user-scoped
+   * /control-plane/.../sessions/{id} delete — only authorize correctly when
+   * the request comes through the public Envoy ingress that fronts milo,
+   * because that ingress translates user identity in a way the bare
+   * apiserver does not. Hand-written resolvers that act on behalf of an
+   * end user must call this URL instead of getK8sServer().
+   *
+   * Falls back to getK8sServer() when unset so dev / unit-test paths keep
+   * working without extra config.
+   */
+  datumApiUrl: process.env.DATUM_API_URL || '',
 }
