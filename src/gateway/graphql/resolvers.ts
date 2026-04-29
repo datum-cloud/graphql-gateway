@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql'
 import { parseUserAgent } from '@/gateway/services/user-agent'
 import { lookupIp } from '@/gateway/services/geolocation'
-import { getK8sServer } from '@/gateway/auth'
+import { getK8sServer, getOriginalFetch } from '@/gateway/auth'
 import { log } from '@/shared/utils'
 
 /**
@@ -85,7 +85,11 @@ export const additionalResolvers = {
         const url = sessionsURL(context)
         const authorization = getHeader(context, 'authorization')
 
-        const response = await fetch(url, {
+        // Use the pre-override fetch so no client cert is presented. milo's
+        // user-scoped path needs to authenticate the *end user* via bearer
+        // token; with the gateway's mTLS cert in the way, X509 auth wins
+        // first and the user-scoped RBAC check 403s.
+        const response = await getOriginalFetch()(url, {
           headers: {
             ...(authorization ? { Authorization: authorization } : {}),
             Accept: 'application/json',
@@ -121,7 +125,10 @@ export const additionalResolvers = {
       const url = sessionsURL(context, args.id)
       const authorization = getHeader(context, 'authorization')
 
-      const response = await fetch(url, {
+      // Same reason as Query.sessions — bypass the mTLS-wrapped global
+      // fetch so milo authenticates the user via bearer token rather than
+      // the gateway's client cert.
+      const response = await getOriginalFetch()(url, {
         method: 'DELETE',
         headers: {
           ...(authorization ? { Authorization: authorization } : {}),
