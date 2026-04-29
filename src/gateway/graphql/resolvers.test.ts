@@ -1,8 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { GraphQLError } from 'graphql'
 
+// Resolvers call getOriginalFetch() to bypass the global mTLS-wrapped fetch.
+// Mock it to return whatever globalThis.fetch is at call-time so the existing
+// vi.stubGlobal('fetch', spy) plumbing in each describe block continues to
+// work without the test having to thread a mock through the auth module.
 vi.mock('@/gateway/auth', () => ({
   getK8sServer: () => 'https://k8s.test',
+  getOriginalFetch: () => globalThis.fetch,
 }))
 
 vi.mock('@/gateway/services/geolocation', () => ({

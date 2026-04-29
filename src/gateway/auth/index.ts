@@ -8,6 +8,11 @@ let k8sServer: string | null = null
 let mtlsFetch: typeof fetch | null = null
 let mtlsConfig: K8sMTLSConfig | null = null
 let initialized = false
+// Saved before the global fetch override so callers that explicitly want to
+// bypass mTLS (e.g. the local sessions resolver, which needs milo to
+// authenticate the *end user* via bearer token rather than the gateway via
+// client cert) can still reach the K8s server with a plain fetch.
+let savedOriginalFetch: typeof fetch | null = null
 
 /**
  * Initialize K8s authentication by loading mTLS credentials from kubeconfig.
@@ -33,7 +38,7 @@ export function initAuth(): void {
   mtlsFetch = createMTLSFetch(mtlsConfig)
 
   // Override global fetch to use mTLS for requests to the K8s API server
-  const originalFetch = globalThis.fetch
+  savedOriginalFetch = globalThis.fetch
   globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
 
@@ -42,7 +47,7 @@ export function initAuth(): void {
       return mtlsFetch!(input, init)
     }
 
-    return originalFetch(input, init)
+    return savedOriginalFetch!(input, init)
   }) as typeof fetch
 
   initialized = true
@@ -81,6 +86,27 @@ export function getMTLSConfig(): K8sMTLSConfig {
     throw new Error('K8s auth not initialized. Call initAuth() first.')
   }
   return mtlsConfig
+}
+
+/**
+ * Get the pre-override fetch for callers that need to reach the K8s API
+ * server WITHOUT presenting the gateway's client cert.
+ *
+ * The default global fetch routes K8s-bound requests through the mTLS agent,
+ * which means K8s authenticates the request as the gateway's identity. For
+ * user-scoped paths that need milo to authenticate the *end user* via the
+ * forwarded bearer token, callers must use this fetch instead so no client
+ * cert is presented and the bearer-token authenticator wins.
+ *
+ * Node's TLS still validates milo's server cert via NODE_EXTRA_CA_CERTS.
+ *
+ * @throws Error if auth not initialized
+ */
+export function getOriginalFetch(): typeof fetch {
+  if (!savedOriginalFetch) {
+    throw new Error('K8s auth not initialized. Call initAuth() first.')
+  }
+  return savedOriginalFetch
 }
 
 /**
